@@ -8,8 +8,9 @@
 |---|---|
 | 项目名 | 非遗数字人（数字人 + RAG，自托管实时渲染） |
 | 项目根目录 | **`D:\数字人+RAG\`**（所有产物必须落在此目录下） |
-| 文档版本 | v1.9 |
-| 最后更新 | 2026-11-05 15:55 |
+| 文档版本 | v1.10 |
+| 最后更新 | 2026-11-07 19:35 |
+| 代码仓库 | **https://github.com/siliwen/NM-Rag**（公开仓库，`main` 分支；推送凭据走 Windows 凭据管理器，本机无 SSH key） |
 | 当前阶段 | **阶段 1（云上跑通）与阶段 2（RAG）并行** |
 | 下一个里程碑 | AutoDL 上跑通 LiveTalking 实时口型驱动；语料采集转入真实非遗资料（PDF + 录音两条入库链路均已就绪） |
 
@@ -282,6 +283,7 @@ D:\数字人+RAG\
 | 2026-11-05 | v1.6 | 演示台挂载 `/demo` + T-206；T-207 LLM 实接（qwen-flash，首字 528ms） | AI（Claude） |
 | 2026-11-05 | v1.7 | **RAG 检索质量达标**：DEC-015（bge-small-zh 语义向量，禁 hash 桩评估）、DEC-016（关键词权重自动 0.2/0.6）、DEC-017（向量指纹+自动重算）、NO-011；新增 `LocalEmbedder`、`feiyi/eval.py`、`scripts/eval_retrieval.py`、`data/corpus` 30 张语料、`data/eval` 33 题；演示台加 `向量模型/维度` 与「RAG 体检」；接口新增 `/knowledge/seed`、`/eval/run`；测试 51→63；实测 hit@1 76.9%→84.6%、hit@3 96.2%、MRR 0.788→0.904 | AI（Claude） |
 | 2026-11-05 | v1.6 | 新增 `POST /knowledge/purge`（按来源前缀删卡片 + 自动 rebuild）；`smoke.py` 改用时间戳来源并在跑完后自清理，不再污染持久化库；测试 49→51；两次重启实测 chunks 稳定为 8 | AI（Claude） |
+| 2026-11-07 | v1.10 | **代码上 GitHub**：仓库 `siliwen/NM-Rag`（公开，`main`）。首提交 64 文件 / 9789 行，含 RAG 全链路、136 个测试、三份方案文档、PDF 与音频测试素材、两张演示台截图。提交前做密钥筛查：`.env` 未入库（仅 `.env.example`），部署方案里的 ECS 公网 IP 已脱敏。`*.wav` 仍按既有规则排除（合成样本可用脚本重新生成，见 `assets/samples/audio/SOURCES.md`）；新增根 `README.md` 作仓库首页。认证踩坑：GCM 里旧令牌失效且本机无 SSH key，`git credential-manager github login` 走浏览器 OAuth 后恢复 | AI（Claude） |
 | 2026-11-05 | v1.9 | **口述史音频转写落地**：DEC-020（PyAV 解码，不依赖系统 ffmpeg）、DEC-021（FunASR paraformer-zh，必须传 `sentence_timestamp=True`，显式装 kaldi-native-fbank）、DEC-022（切块用时间差 + 波形静音双证据；方言走人工校对闭环）、NO-013；新增 `rag/audio.py`、`tests/test_audio.py`（31 例）、`scripts/{transcribe_audio,eval_asr,make_oral_history_sample}.py`、`POST /knowledge/index-audio`、`assets/samples/audio/`（含 SOURCES.md 与带标准答案的样本）；`ingest_docs.py` 支持音频、`session.py`/`api.py` 溯源带 `start_ms/end_ms`；演示台加录音上传与时间点显示；测试 89→136；实测 149.7 秒口述史：CER 6.13%（干净）/ 7.31%（12dB 噪声），时间戳中位误差 138ms / 162ms，RTF 0.09 | AI（Claude） |
 | 2026-11-05 | v1.8 | **PDF / 扫描件入库落地**：DEC-018（pypdfium2 + rapidocr-onnxruntime，禁 PyMuPDF/AGPL）、DEC-019（逐页切块带页码 + 同名来源覆盖）、NO-012；新增 `rag/pdf.py`、`tests/test_pdf.py`（20 例）、`scripts/make_scan_sample.py`、`assets/samples/pdf/`（含 SOURCES.md）；`POST /knowledge/index-pdf`；`ingest_docs.py` 支持 PDF 与 `--ocr/--dpi/--max-pages`；演示台上传区 + 检索结果显示页码；`session.py`/`pipeline.py` 溯源带页码；测试 63→89；实跑 17 页政府文件 49 卡片 1.5 秒、2 页模拟扫描件 OCR 10.4 秒 | AI（Claude） |
 
