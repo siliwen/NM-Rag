@@ -1,0 +1,749 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>非遗数字人讲解员 · 联调演示台</title>
+<style>
+  :root{
+    --bg:#f7f4ef; --panel:#ffffff; --line:#e7ded1;
+    --ink:#2b2622; --ink-2:#6b6157; --ink-3:#9c9186;
+    --red:#8c2f24; --red-soft:#f6e8e5;
+    --jade:#2f5d5a; --jade-soft:#e6efed;
+    --amber:#a8762a; --amber-soft:#fbf1e0;
+    --shadow:0 1px 2px rgba(43,38,34,.05), 0 8px 24px -12px rgba(43,38,34,.18);
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{
+    margin:0;background:var(--bg);color:var(--ink);
+    font-family:"PingFang SC","Microsoft YaHei","Noto Sans SC",system-ui,sans-serif;
+    font-size:14px;line-height:1.65;
+    -webkit-font-smoothing:antialiased;
+  }
+  header{
+    height:60px;display:flex;align-items:center;gap:14px;
+    padding:0 22px;background:var(--panel);border-bottom:1px solid var(--line);
+    position:sticky;top:0;z-index:20;
+  }
+  .mark{
+    width:30px;height:30px;border-radius:9px;flex:none;
+    background:linear-gradient(140deg,#8c2f24,#b4553f 60%,#a8762a);
+    display:grid;place-items:center;color:#fff;font-size:13px;font-weight:700;
+    letter-spacing:-.5px;
+  }
+  header h1{font-size:15px;margin:0;font-weight:600;letter-spacing:.2px}
+  header .sub{color:var(--ink-3);font-size:12px;margin-left:-6px}
+  .pills{margin-left:auto;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+  .pill{
+    display:inline-flex;align-items:center;gap:6px;height:26px;padding:0 10px;
+    border-radius:999px;background:#f4efe8;color:var(--ink-2);
+    font-size:12px;border:1px solid transparent;white-space:nowrap;
+  }
+  .pill b{font-weight:600;color:var(--ink)}
+  .pill.ok{background:var(--jade-soft);color:var(--jade);border-color:#cfe0dd}
+  .pill.warn{background:var(--amber-soft);color:var(--amber);border-color:#efdfc2}
+  .dot{width:6px;height:6px;border-radius:50%;background:currentColor;flex:none}
+  .dot.live{animation:pulse 1.6s infinite}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+
+  .wrap{
+    display:grid;grid-template-columns:308px minmax(0,1fr) 320px;
+    gap:16px;padding:16px;align-items:start;
+    max-width:1560px;margin:0 auto;
+  }
+  .col{display:flex;flex-direction:column;gap:16px;position:sticky;top:76px}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);overflow:hidden}
+  .card-h{
+    padding:11px 14px;border-bottom:1px solid var(--line);
+    font-size:12px;font-weight:600;color:var(--ink-2);letter-spacing:.4px;
+    display:flex;align-items:center;gap:8px;
+  }
+  .card-h .tag{margin-left:auto;font-weight:500;color:var(--ink-3);font-size:11px}
+  .card-b{padding:14px}
+
+  /* 左栏 */
+  .kv{display:flex;justify-content:space-between;gap:10px;padding:6px 0;font-size:12.5px;border-bottom:1px dashed #f0e9df}
+  .kv:last-child{border-bottom:0}
+  .kv span{color:var(--ink-3)}
+  .kv b{font-weight:600;font-variant-numeric:tabular-nums}
+  .btn{
+    width:100%;height:34px;border-radius:9px;border:1px solid var(--line);
+    background:#fbf8f4;color:var(--ink);font-size:13px;cursor:pointer;
+    font-family:inherit;transition:.15s;display:flex;align-items:center;justify-content:center;gap:6px;
+  }
+  .btn:hover{background:#f4eee6;border-color:#d9cdbb}
+  .btn:disabled{opacity:.5;cursor:not-allowed}
+  .btn.primary{background:var(--red);border-color:var(--red);color:#fff}
+  .btn.primary:hover{background:#7a2820}
+  .btn.ghost{background:transparent}
+  .btn.sm{height:30px;font-size:12.5px;width:auto;padding:0 12px}
+  textarea,input[type=text]{
+    width:100%;border:1px solid var(--line);border-radius:9px;padding:9px 10px;
+    font-family:inherit;font-size:13px;color:var(--ink);background:#fdfbf8;
+    resize:vertical;outline:none;transition:.15s;
+  }
+  textarea:focus,input[type=text]:focus{border-color:#c9b9a3;background:#fff;box-shadow:0 0 0 3px rgba(140,47,36,.06)}
+  select,input[type=file]{
+    width:100%;border:1px solid var(--line);border-radius:9px;padding:8px 10px;
+    font-family:inherit;font-size:12.5px;color:var(--ink);background:#fdfbf8;
+    outline:none;transition:.15s;
+  }
+  input[type=file]{padding:6px 8px;font-size:12px;cursor:pointer}
+  input[type=file]::file-selector-button{
+    border:1px solid var(--line);background:#f4efe8;color:var(--ink-2);
+    border-radius:7px;padding:4px 10px;margin-right:9px;font-family:inherit;
+    font-size:12px;cursor:pointer;
+  }
+  input[type=file]::file-selector-button:hover{background:#efe8dd}
+  select:focus,input[type=file]:focus{border-color:#c9b9a3;background:#fff}
+  .hint.ok{color:var(--jade);background:var(--jade-soft);border:1px solid #cfe0dd;border-radius:8px;padding:8px 10px}
+  label.f{display:block;font-size:11.5px;color:var(--ink-3);margin:10px 0 5px}
+  .hint{font-size:11.5px;color:var(--ink-3);line-height:1.6;margin-top:10px}
+  .hint.warn{color:var(--amber);background:var(--amber-soft);border:1px solid #efdfc2;border-radius:8px;padding:8px 10px}
+
+  /* 中栏：对话 */
+  .chat{display:flex;flex-direction:column;height:calc(100vh - 108px);min-height:520px}
+  .chat-head{
+    padding:12px 16px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:12px;
+    background:linear-gradient(180deg,#fffdfa,#fdfaf6);
+  }
+  .avatar{
+    width:40px;height:40px;border-radius:12px;flex:none;position:relative;
+    background:radial-gradient(circle at 50% 32%,#f0d9c9 0 34%,#dcc3ae 35% 100%);
+    border:1px solid #e6d3c2;display:grid;place-items:center;overflow:hidden;
+  }
+  .avatar::before,.avatar::after{
+    content:"";position:absolute;top:17px;width:3px;height:3px;border-radius:50%;background:#5c4636;
+  }
+  .avatar::before{left:13px}
+  .avatar::after{right:13px}
+  .avatar .mouth{
+    position:absolute;bottom:12px;left:50%;transform:translateX(-50%);
+    width:9px;height:2px;border-radius:2px;background:#8a6a55;transition:.12s;
+  }
+  .avatar.speaking .mouth{animation:talk .38s infinite alternate ease-in-out;background:#7a4a3a}
+  @keyframes talk{from{height:2px;width:8px}to{height:7px;width:11px}}
+  .avatar.thinking{animation:breathe 1.2s infinite ease-in-out}
+  @keyframes breathe{0%,100%{transform:scale(1)}50%{transform:scale(1.04)}}
+  .who{font-size:13.5px;font-weight:600}
+  .who small{display:block;font-weight:400;color:var(--ink-3);font-size:11.5px;margin-top:1px}
+  .state-pill{
+    margin-left:auto;font-size:11.5px;padding:4px 10px;border-radius:999px;
+    background:#f4efe8;color:var(--ink-2);border:1px solid var(--line);
+    font-variant-numeric:tabular-nums;
+  }
+  .stream{flex:1;overflow-y:auto;padding:18px 16px 8px;scroll-behavior:smooth}
+  .stream::-webkit-scrollbar{width:8px}
+  .stream::-webkit-scrollbar-thumb{background:#e0d6c8;border-radius:8px}
+  .msg{display:flex;gap:10px;margin-bottom:16px;animation:in .25s ease-out}
+  @keyframes in{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+  .msg .bub{
+    max-width:min(680px,86%);padding:11px 14px;border-radius:13px;font-size:13.5px;
+    white-space:pre-wrap;word-break:break-word;
+  }
+  .msg.user{flex-direction:row-reverse}
+  .msg.user .bub{background:var(--red);color:#fff;border-bottom-right-radius:4px}
+  .msg.bot .bub{background:#fbf7f1;border:1px solid #efe5d7;border-bottom-left-radius:4px}
+  .msg.bot .bub .caret{display:inline-block;width:6px;height:14px;background:var(--red);vertical-align:-2px;animation:blink .9s steps(1) infinite;border-radius:1px}
+  @keyframes blink{50%{opacity:0}}
+  .sources{margin:8px 0 0 50px;display:flex;flex-direction:column;gap:6px}
+  .src{
+    font-size:11.5px;border:1px solid var(--line);border-radius:9px;padding:7px 10px;
+    background:#fff;color:var(--ink-2);cursor:pointer;
+  }
+  .src:hover{border-color:#d9cdbb}
+  .src .top{display:flex;gap:8px;align-items:center}
+  .src .nm{font-weight:600;color:var(--ink)}
+  .src .sc{margin-left:auto;color:var(--jade);font-variant-numeric:tabular-nums}
+  .src .tx{display:none;margin-top:6px;color:var(--ink-3);line-height:1.55;border-top:1px dashed #f0e9df;padding-top:6px}
+  .src.open .tx{display:block}
+  .empty{color:var(--ink-3);font-size:13px;text-align:center;padding:46px 20px;line-height:2}
+  .empty b{color:var(--red);font-weight:600}
+
+  .composer{border-top:1px solid var(--line);padding:12px 14px;background:#fffdfa;display:flex;gap:10px;align-items:flex-end}
+  .composer textarea{min-height:42px;max-height:120px;resize:none;border-radius:11px}
+  .composer .send{width:auto;min-width:74px;height:42px}
+  .quick{display:flex;gap:6px;flex-wrap:wrap;padding:0 14px 12px;background:#fffdfa}
+  .chip{
+    font-size:12px;padding:5px 10px;border-radius:999px;border:1px solid var(--line);
+    background:#fff;color:var(--ink-2);cursor:pointer;transition:.15s;
+  }
+  .chip:hover{border-color:#c9b9a3;color:var(--ink);background:#fbf7f1}
+
+  /* 右栏 */
+  .bar{height:6px;border-radius:4px;background:#f0e9df;overflow:hidden;margin-top:5px}
+  .bar i{display:block;height:100%;background:linear-gradient(90deg,#2f5d5a,#7aa39f);border-radius:4px}
+  .hit{padding:9px 0;border-bottom:1px dashed #f0e9df}
+  .hit:last-child{border-bottom:0}
+  .hit .r1{display:flex;gap:8px;font-size:12px}
+  .hit .r1 b{font-weight:600}
+  .hit .r1 span:last-child{margin-left:auto;color:var(--jade);font-variant-numeric:tabular-nums}
+  .hit .r2{font-size:11.5px;color:var(--ink-3);margin-top:3px;line-height:1.5;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+  .log{
+    font-family:"Cascadia Code",Consolas,monospace;font-size:11px;line-height:1.75;
+    max-height:230px;overflow-y:auto;color:var(--ink-2);background:#fbf8f4;
+    border-radius:8px;padding:9px 10px;
+  }
+  .log div{white-space:pre-wrap;word-break:break-all}
+  .log .t{color:var(--ink-3)}
+  .log .k{color:var(--red)}
+  .foot{text-align:center;color:var(--ink-3);font-size:11.5px;padding:0 0 22px}
+
+  /* 体检 */
+  .metrics{display:flex;gap:18px;margin:10px 0 2px}
+  .metric b{display:block;font-size:20px;font-weight:600;font-variant-numeric:tabular-nums;line-height:1.25;color:var(--ink)}
+  .metric span{font-size:11px;color:var(--ink-3)}
+  .lvl{display:flex;align-items:center;gap:8px;font-size:11.5px;margin-top:7px}
+  .lvl .nm{width:64px;color:var(--ink-2);flex:none}
+  .lvl .bar{flex:1;margin:0}
+  .lvl .vv{width:42px;text-align:right;color:var(--ink-3);font-variant-numeric:tabular-nums}
+  .fail{margin-top:8px;border-top:1px dashed #f0e9df;padding-top:7px;font-size:11px;color:var(--ink-3);line-height:1.6}
+  .fail b{color:var(--red);font-weight:600}
+
+  @media (max-width:1240px){
+    .wrap{grid-template-columns:1fr}
+    .col{position:static}
+    .chat{height:auto;min-height:60vh}
+    .stream{min-height:340px}
+  }
+</style>
+</head>
+<body>
+<header>
+  <div class="mark">非遗</div>
+  <h1>非遗数字人讲解员</h1>
+  <span class="sub">联调演示台 · 编排层 + RAG 骨架</span>
+  <div class="pills">
+    <span class="pill" id="p-health"><span class="dot"></span>连接中</span>
+    <span class="pill" id="p-chunks"><b>0</b> 张卡片</span>
+    <span class="pill" id="p-emb">向量 · -</span>
+    <span class="pill" id="p-llm">LLM 未配置</span>
+  </div>
+</header>
+
+<div class="wrap">
+  <!-- 左栏 -->
+  <div class="col">
+    <div class="card">
+      <div class="card-h">运行状态<span class="tag" id="ver">-</span></div>
+      <div class="card-b">
+        <div class="kv"><span>服务</span><b id="s-status">-</b></div>
+        <div class="kv"><span>知识卡片</span><b id="s-chunks">-</b></div>
+        <div class="kv"><span>向量化</span><b id="s-emb">-</b></div>
+        <div class="kv"><span>向量维度</span><b id="s-dim">-</b></div>
+        <div class="kv"><span>存储</span><b id="s-store">-</b></div>
+        <div class="kv"><span>LLM 模式</span><b id="s-llm">-</b></div>
+        <div class="kv"><span>会话</span><b id="s-sess">未创建</b></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-h">知识库<span class="tag" id="kb-tag">-</span></div>
+      <div class="card-b">
+        <button class="btn primary" id="btn-seed">重置并灌入示例语料</button>
+        <label class="f">上传 PDF（扫描件自动 OCR）</label>
+        <input type="file" id="in-pdf" accept="application/pdf,.pdf" />
+        <select id="in-ocr" style="margin-top:8px" title="扫描页没有文本层，不 OCR 就会入库空白卡片">
+          <option value="auto">自动：只在扫描页用 OCR（推荐）</option>
+          <option value="always">全部走 OCR（对比识别质量）</option>
+          <option value="never">只读文本层（不 OCR）</option>
+        </select>
+        <button class="btn" id="btn-pdf" style="margin-top:8px">上传并入库</button>
+        <div class="hint" id="pdf-hint">文字版 PDF 直接读文本层；扫描件按页判有效字符数，不够的页自动 OCR（约 5 秒/页）。</div>
+        <label class="f">上传口述史录音（转写 + 时间戳）</label>
+        <input type="file" id="in-audio" accept="audio/*,.wav,.mp3,.m4a,.flac,.aac,.ogg" />
+        <select id="in-speaker" style="margin-top:8px" title="口述史常是采访人+传承人两人对答">
+          <option value="false">单人讲话（默认，快）</option>
+          <option value="true">区分说话人（首次要下模型）</option>
+        </select>
+        <button class="btn" id="btn-audio" style="margin-top:8px">转写并入库</button>
+        <div class="hint" id="audio-hint">CPU 上约 12 秒/分钟音频（RTF 0.09）。方言建议先转写导出稿子人工校对，再回灌。</div>
+        <label class="f">或粘贴自己的文本</label>
+        <textarea id="in-text" rows="4" placeholder="把非遗申报书、讲解稿、口述史整理稿粘贴到这里…"></textarea>
+        <input type="text" id="in-src" placeholder="来源标识，如：皮影戏申报书 p12" style="margin-top:8px" />
+        <button class="btn" id="btn-index" style="margin-top:8px">切块并入库</button>
+        <div class="hint" id="seed-hint">示例语料共 30 张卡片，覆盖皮影戏、秦腔、剪纸、凤翔泥塑、西安鼓乐与非遗制度，与评测集同源。</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-h">说明</div>
+      <div class="card-b">
+        <div class="hint warn" id="mode-hint">
+          当前未配置 LLM 密钥，回答由离线桩模型生成——<b>链路是真的，文案是假的</b>。填入 .env 里的 LLM_API_KEY 即为真实大模型。
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 中栏 -->
+  <div class="card chat">
+    <div class="chat-head">
+      <div class="avatar thinking" id="avatar"><span class="mouth"></span></div>
+      <div class="who">非遗讲解员<small id="who-sub">待命中 · 形象与音色待接入</small></div>
+      <div class="state-pill" id="state">idle</div>
+    </div>
+    <div class="stream" id="stream">
+      <div class="empty" id="empty">
+        先在左侧<b>重置并灌入示例语料</b>，然后在下方提问。<br />
+        例如：「影人的花纹是怎么弄出来的？」「泥老虎是摆着干嘛用的？」
+      </div>
+    </div>
+    <div class="quick" id="quick">
+      <span class="chip">做影人得把皮子刮成什么样才透光？</span>
+      <span class="chip">影子戏是谁发明的？</span>
+      <span class="chip">泥老虎是摆着干嘛用的？</span>
+      <span class="chip">老乐谱现在还有人认得吗？</span>
+      <span class="chip">你们食堂几点开门？</span>
+    </div>
+    <div class="composer">
+      <textarea id="in-q" placeholder="观众提问…（Enter 发送，Shift+Enter 换行）"></textarea>
+      <button class="btn primary send" id="btn-send">提问</button>
+      <button class="btn ghost send" id="btn-stop" title="模拟观众中途插话">打断</button>
+    </div>
+  </div>
+
+  <!-- 右栏 -->
+  <div class="col">
+    <div class="card">
+      <div class="card-h">检索调试<span class="tag">top-3</span></div>
+      <div class="card-b">
+        <input type="text" id="in-sq" placeholder="输入查询，看召回排序与分数" />
+        <button class="btn sm" id="btn-search" style="margin-top:8px;width:100%">检索</button>
+        <div id="hits" style="margin-top:6px"><div class="hint">尚未检索。</div></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-h">RAG 体检<span class="tag">33 道题</span></div>
+      <div class="card-b">
+        <button class="btn" id="btn-eval">跑一遍评测集</button>
+        <div id="eval-box" style="margin-top:4px"><div class="hint">跑完会给出 hit@1、MRR 与分级命中率。越界问题分数越低越好。</div></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-h">事件流<span class="tag">NDJSON</span></div>
+      <div class="card-b" style="padding:10px">
+        <div class="log" id="log"><div><span class="t">// 每次提问会实时打印事件</span></div></div>
+      </div>
+    </div>
+    <div class="foot">陕ICP备2026021906号-1 · AI 生成内容已标识</div>
+  </div>
+</div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+
+/* 毫秒 → 03:21 / 1:03:21。向下取整：宁可比实际早半秒，也不要让用户跳过开头。 */
+function fmtAt(ms) {
+  if (ms == null) return '';
+  let t = Math.max(0, Math.floor(ms / 1000));
+  const h = Math.floor(t / 3600);
+  t -= h * 3600;
+  const m = Math.floor(t / 60);
+  const s = t - m * 60;
+  const pad = (n) => String(n).padStart(2, '0');
+  return h ? h + ':' + pad(m) + ':' + pad(s) : pad(m) + ':' + pad(s);
+}
+
+/* 一条溯源的「位置」描述：PDF 给页码，录音给时间点 */
+function placeOf(it) {
+  if (it.page) return ' · 第' + it.page + '页';
+  if (it.start_ms != null) return ' · ' + fmtAt(it.start_ms);
+  return '';
+}
+let sessionId = null;
+let streaming = false;
+
+/* ---------- 状态 ---------- */
+async function refreshHealth() {
+  try {
+    const r = await fetch('/health');
+    const d = await r.json();
+    $('p-health').className = 'pill ok';
+    $('p-health').innerHTML = '<span class="dot live"></span>服务在线';
+    $('p-chunks').innerHTML = '<b>' + d.chunks + '</b> 张卡片';
+    $('p-llm').className = 'pill ' + (d.llm_configured ? 'ok' : 'warn');
+    $('p-llm').textContent = d.llm_configured ? 'LLM 已接入' : 'LLM 离线桩';
+    $('ver').textContent = 'v' + d.version;
+    $('s-status').textContent = 'ok';
+    $('s-chunks').textContent = d.chunks;
+    $('s-emb').textContent = d.embedder === 'hash' ? 'hash（测试桩）' : (d.embedder_model || d.embedder);
+    $('s-dim').textContent = d.embedder_dim ? d.embedder_dim + ' 维' : '-';
+    $('p-emb').className = 'pill ' + (d.embedder === 'hash' ? 'warn' : 'ok');
+    $('p-emb').textContent = d.embedder === 'hash'
+      ? '向量 · 测试桩'
+      : '向量 · ' + String(d.embedder_model || d.embedder).split('/').pop();
+    $('kb-tag').textContent = d.chunks + ' 张';
+    $('s-store').textContent = d.store === 'sqlite' ? 'SQLite 持久化' : '内存 · 重启即丢';
+    $('s-llm').textContent = d.llm_configured ? '真实大模型' : 'StubLLM';
+    if (d.llm_configured) {
+      $('mode-hint').className = 'hint';
+      $('mode-hint').innerHTML = '已配置真实大模型，回答内容由 LLM 结合检索到的卡片生成。';
+    }
+  } catch (e) {
+    $('p-health').className = 'pill warn';
+    $('p-health').innerHTML = '<span class="dot"></span>连接失败';
+  }
+}
+
+async function ensureSession() {
+  if (sessionId) return sessionId;
+  const r = await fetch('/session', { method: 'POST' });
+  const d = await r.json();
+  sessionId = d.session_id;
+  $('s-sess').textContent = sessionId;
+  return sessionId;
+}
+
+/* ---------- 日志 ---------- */
+function logEvent(ev) {
+  const box = $('log');
+  const t = new Date().toLocaleTimeString('zh-CN', { hour12: false });
+  const div = document.createElement('div');
+  const detail = ev.type === 'token' ? JSON.stringify(ev.text)
+    : ev.type === 'sources' ? ev.items.length + ' 条来源'
+    : ev.type === 'audio' ? ev.bytes + ' bytes'
+    : ev.state ? ev.state : '';
+  div.innerHTML = '<span class="t">' + t + '</span> <span class="k">' + ev.type + '</span> ' + detail;
+  box.appendChild(div);
+  box.scrollTop = box.scrollHeight;
+  while (box.children.length > 120) box.removeChild(box.firstChild);
+}
+
+/* ---------- 对话 ---------- */
+function setState(s) {
+  $('state').textContent = s;
+  $('avatar').className = 'avatar ' + (s === 'speaking' ? 'speaking' : s === 'thinking' || s === 'listening' ? 'thinking' : '');
+  $('who-sub').textContent = s === 'speaking' ? '正在讲解…' : s === 'thinking' ? '检索知识库…' : s === 'listening' ? '在听…' : '待命中 · 形象与音色待接入';
+}
+
+function addUser(text) {
+  const div = document.createElement('div');
+  div.className = 'msg user';
+  div.innerHTML = '<div class="bub"></div>';
+  div.querySelector('.bub').textContent = text;
+  $('stream').appendChild(div);
+  $('empty') && $('empty').remove();
+}
+
+function addBot() {
+  const div = document.createElement('div');
+  div.className = 'msg bot';
+  div.innerHTML = '<div class="bub"><span class="txt"></span><span class="caret"></span></div>';
+  $('stream').appendChild(div);
+  return div;
+}
+
+function addSources(items) {
+  if (!items || !items.length) return;
+  const box = document.createElement('div');
+  box.className = 'sources';
+  items.forEach((it) => {
+    const el = document.createElement('div');
+    el.className = 'src';
+    el.innerHTML = '<div class="top"><span class="nm"></span><span class="sc"></span></div><div class="tx"></div>';
+    // PDF 卡片带页码、录音卡片带时间点：观众追问「哪一页/第几分钟」时能直接答上来
+    el.querySelector('.nm').textContent = (it.source || it.id) +
+      placeOf(it) + (it.ocr ? ' · OCR' : '');
+    el.querySelector('.sc').textContent = 'score ' + it.score;
+    el.querySelector('.tx').textContent = it.text + (it.detail ? '　[' + it.detail + ']' : '');
+    el.onclick = () => el.classList.toggle('open');
+    box.appendChild(el);
+  });
+  $('stream').appendChild(box);
+}
+
+async function ask(text) {
+  if (streaming || !text.trim()) return;
+  streaming = true;
+  $('btn-send').disabled = true;
+  await ensureSession();
+  addUser(text);
+  const bot = addBot();
+  const txt = bot.querySelector('.txt');
+  const caret = bot.querySelector('.caret');
+  let answer = '';
+
+  try {
+    const res = await fetch('/session/' + sessionId + '/say', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text }),
+    });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+
+    const reader = res.body.getReader();
+    const dec = new TextDecoder();
+    let buf = '';
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buf += dec.decode(value, { stream: true });
+      let i;
+      while ((i = buf.indexOf('\n')) >= 0) {
+        const line = buf.slice(0, i).trim();
+        buf = buf.slice(i + 1);
+        if (!line) continue;
+        let ev;
+        try { ev = JSON.parse(line); } catch (_) { continue; }
+        logEvent(ev);
+        if (ev.type === 'state') setState(ev.state);
+        else if (ev.type === 'sources') addSources(ev.items);
+        else if (ev.type === 'token') { answer += ev.text; txt.textContent = answer; $('stream').scrollTop = $('stream').scrollHeight; }
+        else if (ev.type === 'interrupted') { txt.textContent = answer + '（已被打断）'; }
+      }
+    }
+  } catch (e) {
+    txt.textContent = '请求失败：' + e.message;
+    logEvent({ type: 'error', state: String(e.message) });
+  } finally {
+    caret.remove();
+    setState('idle');
+    streaming = false;
+    $('btn-send').disabled = false;
+    refreshHealth();
+  }
+}
+
+/* ---------- 检索调试 ---------- */
+async function search() {
+  const q = $('in-sq').value.trim();
+  if (!q) return;
+  const r = await fetch('/knowledge/search', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ query: q, top_k: 3 }),
+  });
+  const d = await r.json();
+  const box = $('hits');
+  if (!d.hits.length) { box.innerHTML = '<div class="hint">没有命中，先入库资料。</div>'; return; }
+  const max = Math.max.apply(null, d.hits.map((h) => h.score)) || 1;
+  box.innerHTML = d.hits.map((h) =>
+    '<div class="hit"><div class="r1"><b></b><span></span><span>' + h.score + '</span></div>' +
+    '<div class="bar"><i style="width:' + Math.round(h.score / max * 100) + '%"></i></div>' +
+    '<div class="r2"></div></div>'
+  ).join('');
+  d.hits.forEach((h, idx) => {
+    const el = box.children[idx];
+    el.querySelector('.r1 b').textContent = (h.source || h.id) +
+      placeOf(h) + (h.meta && h.meta.ocr ? ' · OCR' : '');
+    el.querySelector('.r1 span').textContent = h.detail || '';
+    el.querySelector('.r2').textContent = h.text;
+  });
+  logEvent({ type: 'search', state: q + ' → ' + d.hits.length + ' 条' });
+}
+
+/* ---------- PDF 上传 ---------- */
+async function uploadPdf() {
+  const input = $('in-pdf');
+  const file = input.files && input.files[0];
+  if (!file) { $('pdf-hint').className = 'hint warn'; $('pdf-hint').textContent = '先选一个 PDF 文件。'; return; }
+
+  const btn = $('btn-pdf');
+  const hint = $('pdf-hint');
+  btn.disabled = true;
+  const old = btn.textContent;
+  btn.textContent = '解析并入库…';
+  hint.className = 'hint';
+  hint.textContent = '正在解析 ' + file.name + '（扫描件要逐页 OCR，可能要几分钟）…';
+
+  const fd = new FormData();
+  fd.append('file', file);
+  fd.append('ocr', $('in-ocr').value);
+  fd.append('size', 300);
+  fd.append('overlap', 50);
+  fd.append('replace', 'true');
+
+  try {
+    const r = await fetch('/knowledge/index-pdf', { method: 'POST', body: fd });
+    const d = await r.json();
+    if (!r.ok) {
+      // 后端把诊断信息放在 detail 里，别吞掉——尤其扫描件解析失败时
+      const det = d.detail;
+      const msg = typeof det === 'string' ? det : (det && (det.message + '｜' + (det.hint || ''))) || ('HTTP ' + r.status);
+      throw new Error(msg);
+    }
+    hint.className = 'hint ok';
+    hint.textContent = '已入库：' + d.pages + ' 页 → ' + d.indexed + ' 张卡片' +
+      (d.ocr_pages.length ? '，其中 ' + d.ocr_pages.length + ' 页走了 OCR' : '，全部来自文本层') +
+      (d.replaced ? '，覆盖旧卡片 ' + d.replaced + ' 张' : '') +
+      '。库内共 ' + d.total + ' 张。';
+    (d.warnings || []).forEach((w) => logEvent({ type: 'pdf', state: w }));
+    logEvent({ type: 'pdf', state: file.name + ' → ' + d.indexed + ' 张' });
+    input.value = '';
+    refreshHealth();
+  } catch (e) {
+    hint.className = 'hint warn';
+    hint.textContent = '入库失败：' + e.message;
+    logEvent({ type: 'error', state: 'PDF 入库失败 ' + e.message });
+  } finally {
+    btn.disabled = false;
+    btn.textContent = old;
+  }
+}
+
+/* ---------- 音频上传（口述史转写） ---------- */
+async function uploadAudio() {
+  const input = $('in-audio');
+  const file = input.files && input.files[0];
+  const hint = $('audio-hint');
+  if (!file) { hint.className = 'hint warn'; hint.textContent = '先选一个录音文件。'; return; }
+
+  const btn = $('btn-audio');
+  const old = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = '转写中…';
+  hint.className = 'hint';
+  hint.textContent = '正在转写 ' + file.name + '（CPU 上约 12 秒/分钟音频，长录音请耐心等）…';
+
+  const fd = new FormData();
+  fd.append('file', file);
+  fd.append('size', 300);
+  fd.append('gap_ms', 1200);
+  fd.append('speaker', $('in-speaker').value);
+  fd.append('replace', 'true');
+
+  try {
+    const r = await fetch('/knowledge/index-audio', { method: 'POST', body: fd });
+    const d = await r.json();
+    if (!r.ok) {
+      const det = d.detail;
+      const msg = typeof det === 'string' ? det
+        : (det && (det.message + '｜' + (det.hint || ''))) || ('HTTP ' + r.status);
+      throw new Error(msg);
+    }
+    hint.className = 'hint ok';
+    hint.textContent = '已入库：' + d.duration + ' → ' + d.segments + ' 句 / ' + d.indexed + ' 张卡片' +
+      (d.replaced ? '，覆盖旧卡片 ' + d.replaced + ' 张' : '') +
+      '。库内共 ' + d.total + ' 张。';
+    (d.warnings || []).forEach((w) => logEvent({ type: 'audio', state: w }));
+    logEvent({ type: 'audio', state: file.name + ' → ' + d.indexed + ' 张（' + d.duration + '）' });
+    input.value = '';
+    refreshHealth();
+  } catch (e) {
+    hint.className = 'hint warn';
+    hint.textContent = '入库失败：' + e.message;
+    logEvent({ type: 'error', state: '音频入库失败 ' + e.message });
+  } finally {
+    btn.disabled = false;
+    btn.textContent = old;
+  }
+}
+
+/* ---------- 入库 ---------- */
+async function seed() {
+  const btn = $('btn-seed');
+  btn.disabled = true;
+  const old = btn.textContent;
+  btn.textContent = '正在切块与向量化…';
+  try {
+    const r = await fetch('/knowledge/seed', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ reset: true }),
+    });
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    const d = await r.json();
+    $('seed-hint').textContent = '已灌入 ' + d.indexed + ' 张卡片，库内共 ' + d.total + ' 张。';
+    logEvent({ type: 'seed', state: d.indexed + ' 张' });
+  } catch (e) {
+    $('seed-hint').textContent = '灌入失败：' + e.message;
+    logEvent({ type: 'error', state: '灌入失败 ' + e.message });
+  } finally {
+    btn.disabled = false;
+    btn.textContent = old;
+    refreshHealth();
+  }
+}
+
+/* ---------- RAG 体检 ---------- */
+async function runEval() {
+  const btn = $('btn-eval');
+  const box = $('eval-box');
+  btn.disabled = true;
+  const old = btn.textContent;
+  btn.textContent = '评测中…（首次加载模型会慢些）';
+  box.innerHTML = '<div class="hint">正在跑 ' + '33' + ' 道题…</div>';
+  try {
+    const r = await fetch('/eval/run', { method: 'POST' });
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    const d = await r.json();
+    const amber = 'background:linear-gradient(90deg,#a8762a,#d8ab66)';
+    const rows = ['L1', 'L2', 'L3', 'L4', 'L5'].map((k) => {
+      const it = d.by_level[k];
+      const isOos = (k === 'L4' || k === 'L5');
+      // 越界档没有“命中”概念，展示的是最高分；越低越不容易让人误以为有答案
+      const peak = ((d.oos || {})[k] || {}).peak || 0;
+      const w = isOos ? Math.min(100, Math.round(peak * 100)) : Math.round(it.rate * 100);
+      const val = isOos ? peak.toFixed(2) : it.hit + '/' + it.total;
+      return '<div class="lvl"><span class="nm">' + it.title + '</span>' +
+        '<span class="bar"><i style="width:' + w + '%;' + (isOos ? amber : '') + '"></i></span>' +
+        '<span class="vv">' + val + '</span></div>';
+    }).join('');
+
+    let fails = '';
+    if (d.failures.length) {
+      fails = '<div class="fail"><b>未命中 ' + d.failures.length + ' 题</b><br>' +
+        d.failures.slice(0, 4).map((f) =>
+          '· ' + f.q + ' → 应「' + f.expect + '」，得 ' + f.got[0]
+        ).join('<br>') + '</div>';
+    }
+    box.innerHTML =
+      '<div class="metrics">' +
+      '<div class="metric"><b>' + Math.round(d.hit1 * 100) + '%</b><span>hit@1</span></div>' +
+      '<div class="metric"><b>' + Math.round(d.hit3 * 100) + '%</b><span>hit@3</span></div>' +
+      '<div class="metric"><b>' + d.mrr.toFixed(2) + '</b><span>MRR</span></div>' +
+      '<div class="metric"><b>' + d.query_ms.toFixed(0) + '</b><span>ms/题</span></div>' +
+      '</div>' + rows + fails;
+    logEvent({ type: 'eval', state: 'hit@1 ' + Math.round(d.hit1 * 100) + '% · MRR ' + d.mrr });
+  } catch (e) {
+    box.innerHTML = '<div class="hint warn">评测失败：' + e.message + '</div>';
+  } finally {
+    btn.disabled = false;
+    btn.textContent = old;
+  }
+}
+
+/* ---------- 绑定 ---------- */
+$('btn-seed').onclick = seed;
+$('btn-eval').onclick = runEval;
+$('btn-pdf').onclick = uploadPdf;
+$('btn-audio').onclick = uploadAudio;
+$('btn-index').onclick = async () => {
+  const text = $('in-text').value.trim();
+  if (!text) { $('in-text').focus(); return; }
+  const r = await fetch('/knowledge/index', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ text, source: $('in-src').value.trim() || '手工录入', size: 300, overlap: 40 }),
+  });
+  if (r.ok) {
+    const d = await r.json();
+    $('in-text').value = '';
+    logEvent({ type: 'index', state: d.indexed + ' 张' });
+    refreshHealth();
+  } else {
+    logEvent({ type: 'error', state: '入库失败 ' + r.status });
+  }
+};
+$('btn-send').onclick = () => { const q = $('in-q').value.trim(); if (q) { $('in-q').value = ''; ask(q); } };
+$('btn-stop').onclick = async () => {
+  if (!sessionId) return;
+  await fetch('/session/' + sessionId + '/interrupt', { method: 'POST' });
+  logEvent({ type: 'interrupt', state: '观众插话' });
+};
+$('btn-search').onclick = search;
+$('in-sq').onkeydown = (e) => { if (e.key === 'Enter') search(); };
+$('in-q').onkeydown = (e) => {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); $('btn-send').click(); }
+};
+document.querySelectorAll('.chip').forEach((c) => {
+  c.onclick = () => { $('in-q').value = c.textContent; $('btn-send').click(); };
+});
+
+/* 未入库时提示 */
+refreshHealth().then(() => {
+  fetch('/health').then((r) => r.json()).then((d) => { if (!d.chunks) seed(); });
+});
+setInterval(refreshHealth, 8000);
+</script>
+</body>
+</html>

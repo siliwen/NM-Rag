@@ -1,0 +1,35 @@
+fastapi>=0.110
+uvicorn[standard]>=0.27
+pydantic>=2.6
+httpx>=0.27
+pyyaml>=6.0
+numpy>=1.26
+
+# 语义向量（RAG 的核心）。torch 在 Windows 上装的是 CPU 版，约 250MB。
+# 只跑单元测试可以不装：EMBEDDER=hash 即可，但 hash 没有语义能力。
+sentence-transformers>=3.0
+
+# PDF 入库（DEC-018）。两者都是 Apache-2.0，窗口很干净；
+# 不用 PyMuPDF 是因为它 AGPL-3.0，交付给高校等于传染整个交付包。
+pypdfium2>=4.0            # 文本层抽取 + 页面渲染成图，自带二进制，不需要系统装 poppler
+rapidocr-onnxruntime>=1.2 # 中文 OCR（PP-OCR 的 onnx 版），纯 CPU、不联网、不需要 paddlepaddle
+python-multipart>=0.0.9   # FastAPI 接收文件上传（/knowledge/index-pdf）
+
+# 音频入库（DEC-020/021）
+# av = PyAV（BSD-3），wheel 内自带 ffmpeg 解码器，能读 mp3/m4a/aac/flac，
+# 不要求交付现场去装系统 ffmpeg、也不依赖 PATH。
+av>=12.0
+funasr>=1.4               # 中文 ASR：paraformer-zh + fsmn-vad + ct-punc（Apache-2.0）
+# 关键坑：funasr 1.4.x **没有把特征提取后端写进依赖**，
+# 只装 funasr 会在第一次识别时抛 "torchaudio is not installed and neither is
+# the kaldi-native-fbank fallback backend"。这里显式补上（504KB，不需要 torchaudio）。
+kaldi-native-fbank>=1.20
+
+# 测试
+pytest>=8.0
+pytest-asyncio>=0.23
+
+# 可选：生产环境的真实组件（训练/推理机器上再装）
+# FlagEmbedding>=1.2      # bge-m3 的稀疏+稠密双输出，GPU 用
+# cosyvoice               # TTS（声音克隆）
+# pywin32                 # 仅用于 scripts/make_oral_history_sample.py 造测试音频（Windows SAPI）

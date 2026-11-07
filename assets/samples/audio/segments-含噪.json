@@ -1,0 +1,276 @@
+{
+  "source": "模拟口述史-皮影戏-含噪.wav",
+  "duration_ms": 149685,
+  "segments": [
+    {
+      "start_ms": 150,
+      "end_ms": 1410,
+      "text": "我叫王守义，",
+      "speaker": null
+    },
+    {
+      "start_ms": 1910,
+      "end_ms": 3330,
+      "text": "今年六十七了，",
+      "speaker": null
+    },
+    {
+      "start_ms": 3710,
+      "end_ms": 5250,
+      "text": "家住陕西化县，",
+      "speaker": null
+    },
+    {
+      "start_ms": 5810,
+      "end_ms": 8590,
+      "text": "就是现在叫渭南市华州区。",
+      "speaker": null
+    },
+    {
+      "start_ms": 9910,
+      "end_ms": 14210,
+      "text": "我们家唱提影戏到我这一辈是第四代。",
+      "speaker": null
+    },
+    {
+      "start_ms": 15470,
+      "end_ms": 18170,
+      "text": "我十一岁那年跟着我爹学，",
+      "speaker": null
+    },
+    {
+      "start_ms": 18690,
+      "end_ms": 20430,
+      "text": "那时候不叫学艺，",
+      "speaker": null
+    },
+    {
+      "start_ms": 20850,
+      "end_ms": 21570,
+      "text": "叫帮忙。",
+      "speaker": null
+    },
+    {
+      "start_ms": 22210,
+      "end_ms": 31880,
+      "text": "先是在后台一千子剪影人皮影戏的影人是用牛皮刻出来的，",
+      "speaker": null
+    },
+    {
+      "start_ms": 33160,
+      "end_ms": 36080,
+      "text": "选皮要选三碎口的黄牛皮，",
+      "speaker": null
+    },
+    {
+      "start_ms": 36600,
+      "end_ms": 38160,
+      "text": "太老的皮子发脆，",
+      "speaker": null
+    },
+    {
+      "start_ms": 38700,
+      "end_ms": 47320,
+      "text": "太嫩的又立不住皮子泡软了以后要刮刮到能透光薄得根纸一样，",
+      "speaker": null
+    },
+    {
+      "start_ms": 47820,
+      "end_ms": 52420,
+      "text": "还不能破刮皮这个活儿最见功夫，",
+      "speaker": null
+    },
+    {
+      "start_ms": 52920,
+      "end_ms": 55160,
+      "text": "手上一用劲就刮穿了，",
+      "speaker": null
+    },
+    {
+      "start_ms": 55580,
+      "end_ms": 56780,
+      "text": "破了就废了。",
+      "speaker": null
+    },
+    {
+      "start_ms": 57980,
+      "end_ms": 60945,
+      "text": "刮好的皮子封在木框上粘盖，",
+      "speaker": null
+    },
+    {
+      "start_ms": 61450,
+      "end_ms": 63295,
+      "text": "干透了才能画稿子。",
+      "speaker": null
+    },
+    {
+      "start_ms": 65820,
+      "end_ms": 68475,
+      "text": "画稿子讲究一个线条连贯，",
+      "speaker": null
+    },
+    {
+      "start_ms": 69040,
+      "end_ms": 69960,
+      "text": "一笔下去，",
+      "speaker": null
+    },
+    {
+      "start_ms": 69960,
+      "end_ms": 72850,
+      "text": "不能断刻的时候，",
+      "speaker": null
+    },
+    {
+      "start_ms": 72850,
+      "end_ms": 74685,
+      "text": "手里握着十几把刀，",
+      "speaker": null
+    },
+    {
+      "start_ms": 75200,
+      "end_ms": 76985,
+      "text": "刀口宽窄都不一样。",
+      "speaker": null
+    },
+    {
+      "start_ms": 77540,
+      "end_ms": 82335,
+      "text": "可头发丝用最细的那把特一个五声，",
+      "speaker": null
+    },
+    {
+      "start_ms": 82870,
+      "end_ms": 86155,
+      "text": "光是脸谱上的花纹就要一天功夫，",
+      "speaker": null
+    },
+    {
+      "start_ms": 87490,
+      "end_ms": 88845,
+      "text": "测完了要染色。",
+      "speaker": null
+    },
+    {
+      "start_ms": 89420,
+      "end_ms": 90885,
+      "text": "颜料是矿物的，",
+      "speaker": null
+    },
+    {
+      "start_ms": 91360,
+      "end_ms": 93890,
+      "text": "用桐油搅开染一遍，",
+      "speaker": null
+    },
+    {
+      "start_ms": 93910,
+      "end_ms": 94595,
+      "text": "晾一遍，",
+      "speaker": null
+    },
+    {
+      "start_ms": 95180,
+      "end_ms": 96955,
+      "text": "前后要染七八遍。",
+      "speaker": null
+    },
+    {
+      "start_ms": 98320,
+      "end_ms": 101560,
+      "text": "最后一道是上游上了游影，",
+      "speaker": null
+    },
+    {
+      "start_ms": 101660,
+      "end_ms": 102565,
+      "text": "人才透亮，",
+      "speaker": null
+    },
+    {
+      "start_ms": 103140,
+      "end_ms": 105060,
+      "text": "灯光一达红鞋，",
+      "speaker": null
+    },
+    {
+      "start_ms": 105160,
+      "end_ms": 111620,
+      "text": "红绿鞋绿唱戏的调子是婉婉腔乐器，",
+      "speaker": null
+    },
+    {
+      "start_ms": 111620,
+      "end_ms": 113885,
+      "text": "简单就一把乐琴，",
+      "speaker": null
+    },
+    {
+      "start_ms": 114480,
+      "end_ms": 115335,
+      "text": "一副方子，",
+      "speaker": null
+    },
+    {
+      "start_ms": 115890,
+      "end_ms": 120085,
+      "text": "一个碗碗碗碗就是个小铜碗，",
+      "speaker": null
+    },
+    {
+      "start_ms": 120560,
+      "end_ms": 123185,
+      "text": "拿筷子敲声音清脆，",
+      "speaker": null
+    },
+    {
+      "start_ms": 123770,
+      "end_ms": 125285,
+      "text": "所以叫晚婉香。",
+      "speaker": null
+    },
+    {
+      "start_ms": 126750,
+      "end_ms": 129125,
+      "text": "一个人能唱好几个角色，",
+      "speaker": null
+    },
+    {
+      "start_ms": 129630,
+      "end_ms": 131355,
+      "text": "男的女的都得会，",
+      "speaker": null
+    },
+    {
+      "start_ms": 131880,
+      "end_ms": 134935,
+      "text": "嗓子要能翻上去也能压下来。",
+      "speaker": null
+    },
+    {
+      "start_ms": 136300,
+      "end_ms": 139175,
+      "text": "现在年轻人愿意学的不多了，",
+      "speaker": null
+    },
+    {
+      "start_ms": 139650,
+      "end_ms": 141225,
+      "text": "我带了三个徒弟，",
+      "speaker": null
+    },
+    {
+      "start_ms": 141730,
+      "end_ms": 143335,
+      "text": "最长的学问六年，",
+      "speaker": null
+    },
+    {
+      "start_ms": 144680,
+      "end_ms": 148795,
+      "text": "我就想着这门手艺不能在我手上算了。",
+      "speaker": null
+    }
+  ]
+}

@@ -1,0 +1,34 @@
+# 密钥
+.env
+.env.local
+*.key
+
+# Python
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+*.egg-info/
+
+# 素材与大文件（训练产物不入库）
+assets/raw/
+assets/avatars/
+assets/models/
+*.mp4
+*.wav
+*.pth
+*.onnx
+
+# 索引数据与模型缓存（本地产物，可由语料重建，不入库）
+# 注意：data/corpus、data/eval 是「源材料 + 评测集」，必须入库，所以只忽略 index
+code/data/index/
+code/data/models/
+data/index/
+models/
+
+# 转写中间产物（人工校对前的手稿，可随时重新生成）
+*.transcript.txt
+
+# 系统
+.DS_Store
+Thumbs.db

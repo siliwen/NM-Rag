@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>非遗数字人讲解员 · 一页纸方案</title>
+<style>
+  @page { size: A4 landscape; margin: 10mm; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, "PingFang SC", "Microsoft YaHei", "Segoe UI", sans-serif;
+    background: #fff; color: #1a1a1a; padding: 24px 32px; font-size: 13px; line-height: 1.6;
+  }
+  .page { max-width: 1080px; margin: 0 auto; }
+  header { border-bottom: 2px solid #1a1a1a; padding-bottom: 12px; margin-bottom: 18px; display: flex; justify-content: space-between; align-items: flex-end; }
+  h1 { font-size: 22px; font-weight: 600; letter-spacing: .5px; }
+  .sub { font-size: 13px; color: #666; margin-top: 4px; }
+  .meta { text-align: right; font-size: 11px; color: #888; line-height: 1.7; }
+  .lead { background: #f5f5f3; border-left: 3px solid #1a1a1a; padding: 10px 14px; margin-bottom: 18px; font-size: 13.5px; }
+  .lead b { font-weight: 600; }
+  h2 { font-size: 13px; font-weight: 600; color: #1a1a1a; margin-bottom: 10px; display: flex; align-items: center; gap: 8px; }
+  h2 span { background: #1a1a1a; color: #fff; font-size: 11px; padding: 1px 6px; border-radius: 3px; font-weight: 500; }
+  section { margin-bottom: 18px; }
+  .lane { display: grid; grid-template-columns: 96px 1fr 20px 1fr 20px 1fr; align-items: center; gap: 6px; margin-bottom: 8px; }
+  .lane-label { font-size: 12px; font-weight: 600; color: #444; }
+  .lane-label small { display: block; font-weight: 400; color: #999; font-size: 10.5px; }
+  .box { border: 1px solid #d8d8d4; border-radius: 6px; padding: 7px 10px; background: #fafaf8; }
+  .box.t1 { background: #eef4fa; border-color: #b9d3e8; }
+  .box.t2 { background: #eaf6f0; border-color: #b3ddc8; }
+  .box.t3 { background: #fbf2e2; border-color: #e8cfa4; }
+  .box b { display: block; font-size: 12.5px; font-weight: 600; }
+  .box span { display: block; font-size: 11px; color: #666; }
+  .arrow { text-align: center; color: #999; font-size: 14px; }
+  .flow { display: grid; grid-template-columns: repeat(5, 1fr); gap: 14px; }
+  .step { border: 1px solid #d8d8d4; border-radius: 6px; padding: 8px 10px 10px; background: #fafaf8; position: relative; }
+  .step .no { font-size: 10.5px; color: #999; font-weight: 600; letter-spacing: .5px; }
+  .step b { display: block; font-size: 12.5px; font-weight: 600; margin: 2px 0 3px; }
+  .step span { display: block; font-size: 11px; color: #666; line-height: 1.45; }
+  .step .ms { margin-top: 6px; font-size: 10.5px; color: #7a7a7a; border-top: 1px dashed #dcdcd8; padding-top: 4px; }
+  .step.hot { background: #fff4ee; border-color: #efc4ac; }
+  .step.net { background: #fdf6e9; border-color: #e8d5a8; }
+  .grid3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; }
+  .card { border: 1px solid #d8d8d4; border-radius: 6px; padding: 10px 12px; }
+  .card h3 { font-size: 12px; font-weight: 600; margin-bottom: 6px; color: #1a1a1a; }
+  table { width: 100%; border-collapse: collapse; font-size: 11.5px; }
+  td { padding: 3px 0; border-bottom: 1px solid #efefec; vertical-align: top; }
+  td:first-child { color: #777; width: 44%; }
+  td:last-child { text-align: right; font-variant-numeric: tabular-nums; }
+  .tag { display: inline-block; font-size: 10px; padding: 0 5px; border-radius: 3px; background: #eee; color: #555; margin-left: 4px; }
+  .tag.ok { background: #e3f3e9; color: #1d6b3f; }
+  .tag.no { background: #fdeaea; color: #9c2b2b; }
+  footer { border-top: 1px solid #d8d8d4; padding-top: 10px; font-size: 11px; color: #777; display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  footer b { color: #444; font-weight: 600; }
+  @media print { body { padding: 0; } .page { max-width: none; } }
+</style>
+</head>
+<body>
+<div class="page">
+
+<header>
+  <div>
+    <h1>非遗数字人讲解员</h1>
+    <div class="sub">数字人 + RAG 自托管实时渲染方案 · 传承人形象与声音的数字化讲解</div>
+  </div>
+  <div class="meta">
+    技术方案 v1.0<br>
+    2026-11-05
+  </div>
+</header>
+
+<div class="lead">
+  <b>一句话：</b>用传承人本人的形象与声音做一个讲解员，装在展馆大屏里，观众问什么，它翻资料现答，全程在本机运行。
+  只有"组织语言"那一步调用已授权的大模型接口，其余环节零外部依赖、零订阅费。
+</div>
+
+<section>
+  <h2><span>01</span>上岗前：三条流水线，各产出一个部件（只做一次，离线完成）</h2>
+  <div class="lane">
+    <div class="lane-label">资料线<small>知识</small></div>
+    <div class="box t1"><b>非遗资料</b><span>申报书 · 文献 · 口述史录音 · 图片</span></div>
+    <div class="arrow">→</div>
+    <div class="box t1"><b>解析入库</b><span>扫描件 OCR · 录音转写 · 切块打标</span></div>
+    <div class="arrow">→</div>
+    <div class="box t1"><b>知识库</b><span>可随时增删改的检索库</span></div>
+  </div>
+  <div class="lane">
+    <div class="lane-label">形象线<small>外形</small></div>
+    <div class="box t2"><b>传承人视频</b><span>3~5 分钟正面口播</span></div>
+    <div class="arrow">→</div>
+    <div class="box t2"><b>训练形象</b><span>学习说话时的口型与微动</span></div>
+    <div class="arrow">→</div>
+    <div class="box t2"><b>形象模型</b><span>给音频就能演</span></div>
+  </div>
+  <div class="lane">
+    <div class="lane-label">声音线<small>音色</small></div>
+    <div class="box t3"><b>传承人录音</b><span>1 分钟干净人声</span></div>
+    <div class="arrow">→</div>
+    <div class="box t3"><b>声音克隆</b><span>本地推理，保留乡音</span></div>
+    <div class="arrow">→</div>
+    <div class="box t3"><b>音色模型</b><span>能说任何新句子</span></div>
+  </div>
+</section>
+
+<section>
+  <h2><span>02</span>上岗后：观众提问 → 数字人现查现答（端到端约 1.5~2.5 秒出声）</h2>
+  <div class="flow">
+    <div class="step"><div class="no">STEP 1</div><b>听清问题</b><span>语音转文字</span><div class="ms">0.2~0.5s · 本地</div></div>
+    <div class="step"><div class="no">STEP 2</div><b>翻知识库</b><span>找出最相关的 5 张卡片</span><div class="ms">0.05~0.1s · 本地</div></div>
+    <div class="step"><div class="no">STEP 3</div><b>筛掉凑数的</b><span>留下真正相关的 2~3 张</span><div class="ms">0.1s · 本地</div></div>
+    <div class="step net"><div class="no">STEP 4</div><b>组织语言</b><span>人设 + 资料 + 问题 → 大模型</span><div class="ms">首字 0.5~1.5s · <b>唯一联网</b></div></div>
+    <div class="step hot"><div class="no">STEP 5</div><b>说出来 + 演出来</b><span>合成声音，同步算出口型</span><div class="ms">每块 50ms · 本地</div></div>
+  </div>
+  <p style="font-size:11px;color:#777;margin-top:8px;">
+    边说边出：大模型吐出一句就立刻合成一句，不等全文写完，所以看起来像真人思考着说话。观众中途插话，系统 300ms 内停住并重新倾听。
+  </p>
+</section>
+
+<section>
+  <div class="grid3">
+    <div class="card">
+      <h3>技术选型与协议</h3>
+      <table>
+        <tr><td>渲染引擎</td><td>LiveTalking <span class="tag ok">Apache-2.0</span></td></tr>
+        <tr><td>形象训练</td><td>Ultralight（自训权重自有）</td></tr>
+        <tr><td>声音克隆</td><td>CosyVoice2 <span class="tag ok">Apache-2.0</span></td></tr>
+        <tr><td>语音识别</td><td>FunASR <span class="tag ok">MIT</span></td></tr>
+        <tr><td>向量检索</td><td>bge-m3 + Chroma/Milvus</td></tr>
+        <tr><td>大模型</td><td>校方/公有云 API（OpenAI 兼容）</td></tr>
+      </table>
+    </div>
+    <div class="card">
+      <h3>硬件与成本</h3>
+      <table>
+        <tr><td>推理显存</td><td>约 13 GB</td></tr>
+        <tr><td>推荐显卡</td><td>RTX 3090 / 4090 单卡</td></tr>
+        <tr><td>学校现有 GPU</td><td>可直接复用</td></tr>
+        <tr><td>验证期租用</td><td>约 ¥2/小时</td></tr>
+        <tr><td>软件订阅费</td><td>无</td></tr>
+        <tr><td>唯一变动成本</td><td>大模型调用（月均几十至几百元）</td></tr>
+      </table>
+    </div>
+    <div class="card">
+      <h3>交付形态</h3>
+      <table>
+        <tr><td>部署方式</td><td>本地/校内服务器，一键容器化</td></tr>
+        <tr><td>输出方式</td><td>大屏直出 / 网页访问</td></tr>
+        <tr><td>离线能力</td><td>断网仍可播放预置讲解</td></tr>
+        <tr><td>扩展</td><td>新增非遗项目只需补资料</td></tr>
+        <tr><td>数据归属</td><td>全部留在校内</td></tr>
+        <tr><td>源码交付</td><td>可闭源交付，无 GPL 传染</td></tr>
+      </table>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div>
+    <b>合规要点：</b>传承人肖像与声音需签署书面授权；数字人产出的讲解内容须标注"AI 生成"；不使用任何仅限研究用途的模型权重。
+  </div>
+  <div>
+    <b>与通用产品的区别：</b>不采用第三方数字人云服务，不按分钟付费，形象与声音资产完全自有，可随项目长期维护与增补。
+  </div>
+</footer>
+
+</div>
+</body>
+</html>
