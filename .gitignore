@@ -29,6 +29,13 @@ models/
 # 转写中间产物（人工校对前的手稿，可随时重新生成）
 *.transcript.txt
 
+# 调试/实验产物（跑一次就变，不入库）
+code/data/exp_*.md
+code/data/answer_after_fix.md
+
 # 系统
 .DS_Store
 Thumbs.db
+
+# AI 协作工具的本地记忆/会话记录（本机产物，不入库）
+.workbuddy/

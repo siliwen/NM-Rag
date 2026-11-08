@@ -31,5 +31,8 @@ pytest-asyncio>=0.23
 
 # 可选：生产环境的真实组件（训练/推理机器上再装）
 # FlagEmbedding>=1.2      # bge-m3 的稀疏+稠密双输出，GPU 用
-# cosyvoice               # TTS（声音克隆）
+# cosyvoice               # TTS（声音克隆），需 GPU，见 AGENT.md DEC-007 / NO-004
 # pywin32                 # 仅用于 scripts/make_oral_history_sample.py 造测试音频（Windows SAPI）
+#
+# 本地 TTS 过渡方案（Kokoro，纯 CPU）单独装在 requirements-tts.txt：
+#   pip install -r requirements-tts.txt

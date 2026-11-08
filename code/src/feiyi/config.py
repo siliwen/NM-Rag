@@ -51,6 +51,14 @@ class Settings:
     llm_api_key: str = field(default_factory=lambda: _get("LLM_API_KEY", ""))
     llm_model: str = field(default_factory=lambda: _get("LLM_MODEL", "gpt-4o-mini"))
     llm_timeout: int = field(default_factory=lambda: _get_int("LLM_TIMEOUT", 60))
+    # 普通问答的输出上限。清单型问题（「列出所有…」）会自动放宽到 6000，
+    # 800 只能写出约 1300 汉字，列到第 4 个项目就被截断，看起来像「只找到 4 个」。
+    llm_max_tokens: int = field(default_factory=lambda: _get_int("LLM_MAX_TOKENS", 1200))
+
+    # 本地语音合成服务；为空时保留静音桩，避免开发环境被强制依赖 GPU 服务。
+    tts_base_url: str = field(default_factory=lambda: _get("TTS_BASE_URL", ""))
+    tts_voice_id: str = field(default_factory=lambda: _get("TTS_VOICE_ID", ""))
+    tts_timeout: int = field(default_factory=lambda: _get_int("TTS_TIMEOUT", 60))
 
     embedder: str = field(default_factory=lambda: _get("EMBEDDER", "hash"))
     embedder_device: str = field(default_factory=lambda: _get("EMBEDDER_DEVICE", ""))
@@ -61,6 +69,9 @@ class Settings:
     data_dir: str = field(default_factory=lambda: _get("DATA_DIR", str(_DEFAULT_DATA_DIR)))
     retrieve_top_k: int = field(default_factory=lambda: _get_int("RETRIEVE_TOP_K", 3))
     retrieve_candidates: int = field(default_factory=lambda: _get_int("RETRIEVE_CANDIDATES", 10))
+    # 拼 prompt 时的上下文预算（字符）。1500 只装得下约 6 张卡，
+    # 一顿回答 4 段以上就会被截掉尾巴，模型只能拿前半段作答。
+    max_context_chars: int = field(default_factory=lambda: _get_int("MAX_CONTEXT_CHARS", 3000))
     # -1 = 自动：有语义向量时偏向量（0.2），只有 hash 桩时只能靠关键词（0.6）。
     # 实测依据：bge-small-zh 下 w=0 的 hit@1 为 88.5%，w=0.6 只有 80.8%。
     keyword_weight: float = field(default_factory=lambda: _get_float("KEYWORD_WEIGHT", -1.0))

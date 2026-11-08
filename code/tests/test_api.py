@@ -325,3 +325,20 @@ def test_audio_rejects_transcript_without_sentences(audio_client):
     )
     assert resp.status_code == 422
     assert "没有解析出" in resp.json()["detail"]
+
+
+def test_container_passes_budgets_from_settings():
+    """配置项必须真的传进 pipeline，否则改了 .env 也不生效（这类静默失效最难查）。"""
+    settings = Settings()
+    settings.embedder = "hash"
+    settings.llm_api_key = ""
+    settings.retrieve_top_k = 7
+    settings.max_context_chars = 4321
+    settings.llm_max_tokens = 999
+
+    app = create_app(settings)
+    pipeline = app.state.container.pipeline
+
+    assert pipeline.top_k == 7
+    assert pipeline.max_context_chars == 4321
+    assert pipeline.max_tokens == 999

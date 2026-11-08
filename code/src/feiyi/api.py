@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import json
 import tempfile
+from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Any
 
@@ -24,7 +25,7 @@ from pydantic import BaseModel, Field, field_validator
 
 from . import __version__
 from .clients.llm import build_llm
-from .clients.tts import StubTTS
+from .clients.tts import HttpTTS, StubTTS
 from .config import Settings, get_settings
 from .pipeline import RAGPipeline
 from .rag.chunking import chunk_text
@@ -135,8 +136,18 @@ class Container:
             retriever=self.retriever,
             llm=self.llm,
             top_k=settings.retrieve_top_k,
+            max_context_chars=settings.max_context_chars,
+            max_tokens=settings.llm_max_tokens,
         )
-        self.tts = StubTTS()
+        self.tts = (
+            HttpTTS(
+                base_url=settings.tts_base_url,
+                timeout=settings.tts_timeout,
+                voice_id=settings.tts_voice_id,
+            )
+            if settings.tts_base_url
+            else StubTTS()
+        )
         self.sessions: dict[str, Session] = {}
         # ASR 懒加载：没人传音频就不该把 900MB 模型读进内存。
         # 测试直接赋一个桩引擎即可，不必碰真实模型。
@@ -189,7 +200,20 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     cfg = settings or get_settings()
     container = Container(cfg)
 
-    app = FastAPI(title="非遗数字人讲解员", version=__version__)
+    @asynccontextmanager
+    async def lifespan(_app: FastAPI):
+        # 预热放在启动阶段：首段合成不再付 TCP 握手（~0.29s）和后端冷加载（十几秒）
+        warm = getattr(container.tts, "warmup", None)
+        if callable(warm):
+            await warm()
+        try:
+            yield
+        finally:
+            closer = getattr(container.tts, "aclose", None)
+            if callable(closer):
+                await closer()
+
+    app = FastAPI(title="非遗数字人讲解员", version=__version__, lifespan=lifespan)
     app.state.container = container
 
     @app.get("/health")
@@ -203,6 +227,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             "embedder_dim": getattr(container.embedder, "dim", 0),
             "store": cfg.vector_store,
             "llm_configured": cfg.llm_configured,
+            "tts_configured": bool(cfg.tts_base_url),
+            "tts_voice_id": cfg.tts_voice_id or None,
         }
 
     @app.post("/knowledge/index")

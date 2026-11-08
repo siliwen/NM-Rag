@@ -8,7 +8,7 @@
 |---|---|
 | 项目名 | 非遗数字人（数字人 + RAG，自托管实时渲染） |
 | 项目根目录 | **`D:\数字人+RAG\`**（所有产物必须落在此目录下） |
-| 文档版本 | v1.10 |
+| 文档版本 | v1.13 |
 | 最后更新 | 2026-11-07 19:35 |
 | 代码仓库 | **https://github.com/siliwen/NM-Rag**（公开仓库，`main` 分支；推送凭据走 Windows 凭据管理器，本机无 SSH key） |
 | 当前阶段 | **阶段 1（云上跑通）与阶段 2（RAG）并行** |
@@ -201,7 +201,7 @@ D:\数字人+RAG\
 |---|---|---|---|
 | T-301 | 素材预处理（帧率转 20/25fps、切片、清洗） | ⬜ | 依赖 T-005 |
 | T-302 | 训练 syncnet → 训练主体模型 | ⬜ | Ultralight 路线优先 |
-| T-303 | 传承人声音克隆（CosyVoice2） | ⬜ | 1 分钟样本最佳 |
+| T-303 | 传承人声音克隆（CosyVoice2） | ⬜ | 1 分钟样本最佳；**落地清单已写好**：`code/README.md`「GPU 到位后：换 CosyVoice2（待执行，交接清单）」——只改 `.env` 三行，编排层零改动 |
 | T-304 | 新形象接入 LiveTalking 做 A/B 与掉帧测试 | ⬜ | |
 
 ### 阶段 4：打包交付
@@ -286,6 +286,9 @@ D:\数字人+RAG\
 | 2026-11-07 | v1.10 | **代码上 GitHub**：仓库 `siliwen/NM-Rag`（公开，`main`）。首提交 64 文件 / 9789 行，含 RAG 全链路、136 个测试、三份方案文档、PDF 与音频测试素材、两张演示台截图。提交前做密钥筛查：`.env` 未入库（仅 `.env.example`），部署方案里的 ECS 公网 IP 已脱敏。`*.wav` 仍按既有规则排除（合成样本可用脚本重新生成，见 `assets/samples/audio/SOURCES.md`）；新增根 `README.md` 作仓库首页。认证踩坑：GCM 里旧令牌失效且本机无 SSH key，`git credential-manager github login` 走浏览器 OAuth 后恢复 | AI（Claude） |
 | 2026-11-05 | v1.9 | **口述史音频转写落地**：DEC-020（PyAV 解码，不依赖系统 ffmpeg）、DEC-021（FunASR paraformer-zh，必须传 `sentence_timestamp=True`，显式装 kaldi-native-fbank）、DEC-022（切块用时间差 + 波形静音双证据；方言走人工校对闭环）、NO-013；新增 `rag/audio.py`、`tests/test_audio.py`（31 例）、`scripts/{transcribe_audio,eval_asr,make_oral_history_sample}.py`、`POST /knowledge/index-audio`、`assets/samples/audio/`（含 SOURCES.md 与带标准答案的样本）；`ingest_docs.py` 支持音频、`session.py`/`api.py` 溯源带 `start_ms/end_ms`；演示台加录音上传与时间点显示；测试 89→136；实测 149.7 秒口述史：CER 6.13%（干净）/ 7.31%（12dB 噪声），时间戳中位误差 138ms / 162ms，RTF 0.09 | AI（Claude） |
 | 2026-11-05 | v1.8 | **PDF / 扫描件入库落地**：DEC-018（pypdfium2 + rapidocr-onnxruntime，禁 PyMuPDF/AGPL）、DEC-019（逐页切块带页码 + 同名来源覆盖）、NO-012；新增 `rag/pdf.py`、`tests/test_pdf.py`（20 例）、`scripts/make_scan_sample.py`、`assets/samples/pdf/`（含 SOURCES.md）；`POST /knowledge/index-pdf`；`ingest_docs.py` 支持 PDF 与 `--ocr/--dpi/--max-pages`；演示台上传区 + 检索结果显示页码；`session.py`/`pipeline.py` 溯源带页码；测试 63→89；实跑 17 页政府文件 49 卡片 1.5 秒、2 页模拟扫描件 OCR 10.4 秒 | AI（Claude） |
+| 2026-11-07 | v1.11 | **本地 TTS 落地 + 首音延迟优化**：TTS 后端先用 Kokoro-82M-zh（CPU 过渡方案，CosyVoice2 仍等 GPU）；权重走 **ModelScope**（`scripts/fetch_kokoro_model.py`）——实测 hf-mirror 会在 270MB/327MB 处停滞 4 分钟、API 不通；适配器支持本地权重、并行合成、削超长停顿；`session.py` 改**按句流式**（一句一合成，边生成边下发），`audio` 事件带 `seq/text/elapsed_ms`；切句逻辑抽到 `feiyi/textsplit.py` 供编排层与后端共用；前端加**顺序播放队列**，打断/新提问立即停播。**抓到两个真 bug**：① `workers<=1` 只合成首片、其余分片被静默丢弃（NO-006 同类）；② 本地 TTS 客户端走系统代理，每次白多花 0.6 秒（`trust_env=False` 修复）。首音 6.51s→**3.0~3.2s**，音频 20.0s→12.7s，静音占比 36.9%→29.1%；测试 136→**180** | AI（Claude） |
+| 2026-11-08 | v1.13 | **RAG 召回缺失修复 + 定位改为「通用文档问答」**：用户实测「把宋伟做的所有项目拉清单」只返回 2~3 个项目，根因是**四层预算连环截断**（`RETRIEVE_TOP_K=3` → `MAX_CONTEXT_CHARS` → `LLM_MAX_TOKENS=800` → 「120 字以内」的人设 prompt），简历 42 张卡实际只喂进 3 张、输出上限只够写 4 条。三处一起改：**A 清单型自动路由**——`is_enumeration()` 命中「所有/全部/清单/列出/有哪些…」时走 `_retrieve_whole_source()`：先定位最相关来源，再把该来源卡片**按原文顺序全量**取出，上下文放宽到 16000 字、输出 6000 token、专用 `ENUMERATION_PROMPT`（逐条不省略 + 每条 150 字以内，否则 6600 字写满仍在第 12 条被截断）；**B 切块修复**——标题（含起止时间的短行）必须与描述同卡，`chunking.looks_like_heading()/split_title_spans()` 让标题开新块且不继承 overlap，修掉「厦门斑马定制AI能力支持项目」这类**模型张冠李戴编项目名**；**C 参数微调**——`LLM_MAX_TOKENS` 默认 800→1200，`max_tokens` 支持按调用覆盖。**兜底与取舍**：来源超 60 张退化为 `ENUM_FALLBACK_TOP_K=20` 但按原文顺序重排（否则 2015 排到 2021 前）；单卡来源（「秦腔有哪些角色行当」）不下沉清单模式，否则白白丢语音——`Session` 的 `speak` 判断改为复用 `pipeline.plan()` 的结论而非各判一次文本。**索引重建**：新增 `scripts/repair_index_source.py`（拼接卡片去 overlap，**不插换行**——插换行会把 `Vibe Coding` 永久拆成 `Vi`/`be Coding`；自动备份 + `--dry-run`），简历 42→**46 张**、总 76 张、标题归位 20 张覆盖全部 16 个项目，备份 `knowledge.db.bak-20261108-161206`。**实测**：项目清单 2~3 条 → **16 条 / 2067 字 / 年份 2026 严格倒序至 2014 / 46 张全召回 / 7.4 秒**，清单模式跳过 TTS（逐句合成原要 5 分钟以上）；普通问答未退化（皮影戏 5 张、首音 2.7s；秦腔恢复语音 5 段 / 2.7s）；检索基线 `hit@1 84.6% / hit@3 96.2% / MRR 0.904` 不变。**定位调整**：`SYSTEM_PROMPT` 去掉「非遗讲解员/120 字」改为通用知识库问答，演示台标题与人设文案同步（知识库问答助手），T-303 不受影响；**来源区改为默认折叠**——清单模式一次回 46 张卡，全部平铺会把回答顶出屏幕，改为只露前 4 条 + 「展开其余 N 条（共 N 条）」按钮（`web/index.html`：`SRC_FOLD` / `.src-rest` / `.src-more`）；测试 184→**204** | AI（Claude） |
+| 2026-11-08 | v1.12 | **首音再压 1 秒（3.16s→2.13s）**：首段切分窗口 26→**12 字**（Kokoro 实测每字约 50ms：23 字 1.6s / 12 字 0.9s），窗口内无逗号时按窗口硬切（`textsplit._window_cut` 统一「取窗口内最右逗号，否则硬切」）；`HttpTTS` 改为持有单个 `AsyncClient` **复用连接池**（每段省约 0.29s TCP 握手，一段回答要合成 4~6 次）；新增 `warmup()` 挂到 FastAPI `lifespan`，启动即建连并让后端加载模型，失败只打日志不阻断启动；`conftest` 强制 `TTS_BASE_URL=""`，测试不再依赖真实 9880。实测首音 3.16→**2.13s**（三连测 2.12/2.13/2.20），首段合成 1.63→0.9s，整轮 6.5→6.1s；测试 180→**184**。已知取舍：首段硬切可能断在定语中间（如「皮影戏就是用灯光把皮做的」），调 `FIRST_MAX_TTS_CHARS` 到 18~20 可换语义完整、首音回到 2.4~2.5s。**同批补了 GPU 交接文档**：`code/README.md` 新增「GPU 到位后：换 CosyVoice2（待执行，交接清单）」——含 GPU 机准备项（显存/权重/1 分钟参考音频/授权）、服务接口约定（沿用 `POST /tts`，24kHz 与 Kokoro 一致）、`voice_id` 语义从「内置音色名」变「音色档案 id」（`sft` / `zero_shot` 两模式）、本机只改 `.env` 三行、四项验收命令、回滚方式；T-303 已挂指针 | AI（Claude） |
 
 ---
 

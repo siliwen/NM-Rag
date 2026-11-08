@@ -9,7 +9,8 @@
 src/feiyi/
 ├── config.py            配置（环境变量 / .env）
 ├── api.py               FastAPI 接口
-├── session.py           会话状态机（支持说话中被打断）
+├── session.py           会话状态机（支持说话中被打断；TTS 按句流式）
+├── textsplit.py         句子切分（整段切分 + 流式切分，编排层与 TTS 后端共用）
 ├── pipeline.py          RAG 编排：检索 → prompt → 流式生成
 ├── eval.py              检索质量评测（脚本与接口共用）
 ├── rag/
@@ -21,7 +22,7 @@ src/feiyi/
 │   └── retriever.py     混合检索（语义向量 + BM25，标题参与打分）
 └── clients/
     ├── llm.py           大模型（OpenAI 兼容，唯一联网环节）
-    ├── tts.py           语音合成（StubTTS / 本地 CosyVoice2 的 HTTP 封装）
+    ├── tts.py           语音合成（StubTTS / 本地 TTS 的 HTTP 封装；当前接 Kokoro，见「本地语音合成」）
     ├── asr.py           语音识别（StubASR / 本地 FunASR 的 HTTP 封装）
     └── avatar.py        渲染引擎（LiveTalking HTTP 客户端）
 
@@ -78,6 +79,275 @@ curl -X POST http://127.0.0.1:8020/knowledge/seed -H "Content-Type: application/
 | 右栏 | 检索调试（top-3 分数构成）、**RAG 体检**（一键跑评测集出 hit@1/MRR）、NDJSON 事件流 |
 
 顶部胶囊会显示当前向量模型（`向量 · bge-small-zh-v1.5`）与 LLM 接入状态，一眼看出跑的是真模型还是桩。
+
+## 本地语音合成（TTS）
+
+编排层只认一个约定：`POST {TTS_BASE_URL}/tts`，body `{"text": "...", "voice_id": "..."}`，返回 WAV。
+当前后端是 **Kokoro-82M-中文（v1.1-zh）**，纯 CPU 可跑，定位是「链路先跑通的过渡方案」；
+生产目标仍是 **CosyVoice2**（声音克隆，DEC-007 / DEC-011），但它要 GPU，本机（Radeon 780M 集显 + CPU 版 torch）不适用，等 GPU 机到位后只换后端、不动编排层。
+
+### 首次准备（权重走 ModelScope，别走 hf-mirror）
+
+```bash
+cd D:\数字人+RAG\code
+.venv\Scripts\python.exe -m pip install -r requirements-tts.txt
+
+# 327MB 主模型 + 103 个中文音色包 -> code\data\models\kokoro-82m-zh\（已被 .gitignore 忽略）
+.venv\Scripts\python.exe scripts\fetch_kokoro_model.py
+```
+
+**为什么不用 HuggingFace**：本机实测 hf-mirror 会在下载中途停滞（327MB 的权重到 270MB 后连续 4 分钟零进展，API 直接 502/不通），
+ModelScope 同一仓库可直连，实测 20MB/s 左右、24 秒下完。`kokoro_tts_server.py` 因此**优先读本地目录**，
+`KOKORO_MODEL_DIR` 可覆盖；本地没有时才回退 `repo_id` 走 HF。
+
+### 启动顺序（TTS 必须先起，API 后起）
+
+```bash
+# 1) TTS 后端（9880，与 .env 的 TTS_BASE_URL 对应）
+.venv\Scripts\python.exe -m uvicorn kokoro_tts_server:app --app-dir scripts --port 9880 --host 127.0.0.1
+
+# 2) 编排层（另开一个终端；改了 .env 必须重启才生效）
+.venv\Scripts\python.exe scripts\serve.py
+```
+
+> `--app-dir scripts` 不能省：`scripts/` 不是包，写成 `uvicorn scripts.kokoro_tts_server:app` 会直接导入失败。
+
+### 验证三步
+
+```bash
+# ① 后端活着，且用的是本地权重
+curl http://127.0.0.1:9880/health
+# {"status":"ok","model_source":"local","voice_id":"zf_001",...}
+
+# ② 编排层读到了 TTS 配置（关键：tts_configured 必须是 true）
+curl http://127.0.0.1:8020/health
+# 若为 false，说明进程启动早于 .env 修改 -> 重启 scripts\serve.py
+
+# ③ 真出一段语音（Demo 页勾选「语音播报」，或直接打后端）
+curl -X POST http://127.0.0.1:9880/tts -H "Content-Type: application/json" \
+  -d '{"text":"皮影戏是第一批国家级非物质文化遗产。","voice_id":"zf_001"}' -o test.wav
+```
+
+### 实测（2026-11-07，Ryzen 7 8745HS / 32GB / torch 2.15.0+cpu）
+
+| 项 | 结果 |
+|---|---|
+| 首次合成 | 19.7s（含 327MB 权重加载，已挪到服务启动预热） |
+| 端到端一问一答（LLM 流式 + 检索 + 按句流式 TTS） | **首音 2.1~2.2s**，整轮 6.1~6.6s，产出 15~19 秒语音 |
+
+### 慢在哪、怎么调的
+
+「慢」实测是三个独立原因叠加，不是语速问题：
+
+| 现象 | 最初 | 现在 | 做法 |
+|---|---|---|---|
+| 首音延迟 | 6.51s | **2.1~2.2s** | 按句流式 + 首段压到 12 字 + 连接复用 + 启动预热 |
+| 首段合成耗时 | 2.0s（23 字） | **0.9s**（12 字） | 首段窗口 26 → 12 字；Kokoro 实测每字约 50ms |
+| 单句音频时长（88 字） | 20.0s | **12.7s** | 语速 1.0 → 1.15 + 削掉超长停顿 |
+| 语速 | 4.64 字/秒 | 5.68 字/秒 | `KOKORO_SPEED` |
+| 静音占比 | 36.9% | 29.1% | `KOKORO_MAX_PAUSE_MS`（0.8~1.1s 的长停顿削到 0.42s） |
+
+**按句流式的实现**（`session.py` + `textsplit.py`）：
+
+- 大模型吐 token 的同时攒句子，攒够一句就丢进合成队列，**不等全文**
+- 两个后台协程（文本生产 / 音频合成）往同一个事件队列塞事件，`say()` 按到达顺序 yield，
+  所以 `token` 与 `audio` 会交错到达
+- `audio` 事件带 `seq`（句序）、`text`（这段念的是哪句）、`elapsed_ms`（服务端合成耗时）；
+  前端排队**顺序播放**，新提问或「打断」立刻停播并清空队列
+- 首段专用小窗口（**12 字**，窗口内有逗号就切在逗号处）：Kokoro 每字约 50ms，
+  23 字首段要 1.6 秒、12 字只要 0.9 秒——首段多等一个逗号，数字人就晚开口近 1 秒
+- 首段硬切可能断在定语中间（如「皮影戏就是用灯光把皮做的」）。这是「早开口」与
+  「语义完整」的直接取舍：要更完整就把 `FIRST_MAX_TTS_CHARS`（`session.py`）调到 18~20，
+  首音相应回到 2.4~2.5s
+
+**两个提速细节（都是 0.3 秒级，但会直接影响首音）**：
+
+| 细节 | 不做的代价 | 做法 |
+|---|---|---|
+| HTTP 连接复用 | 每段音频重新建连，一段回答合成 4~6 次，首段多 0.29s | `HttpTTS` 持有一个 `AsyncClient`，不再每次 `async with` |
+| 启动预热 | 第一次提问才建连 + 后端冷加载模型（十几秒） | `lifespan` 里发一次极短合成（`warmup()`），失败不阻断启动 |
+
+**一个坑（踩过才知道）**：本地 TTS/渲染引擎客户端必须 `trust_env=False`。
+本机 `HTTP_PROXY` 指向本地代理时，`httpx` 会把 `127.0.0.1` 的调用也丢给代理中转，
+每次合成白多花约 0.6 秒——首音延迟直接翻倍，而且日志上看不出来。
+
+可调参数（都是 **TTS 后端进程**的环境变量，不是编排层的 `.env`，改完要重启 9880）：
+
+| 变量 | 默认 | 作用 |
+|---|---|---|
+| `KOKORO_SPEED` | `1.15` | 语速。1.0 偏慢（4.4 字/秒），1.3 偏快（5.5 字/秒） |
+| `KOKORO_WORKERS` | `4` | 并行合成线程数。实测 1→5.30s / 2→3.40s / 4→2.94s / 8→2.85s，4 之后收益基本到顶 |
+| `KOKORO_MAX_CHARS` | `40` | 单个分片最大字数，太短则拼接发硬 |
+| `KOKORO_MAX_PAUSE_MS` | `420` | 单次停顿上限，`0` = 关闭削停顿 |
+| `KOKORO_GAP_MS` | `0` | 分片之间额外补的静音 |
+
+```bash
+# 例：觉得还是慢，把语速提到 1.25、并行开到 6
+set KOKORO_SPEED=1.25
+set KOKORO_WORKERS=6
+.venv\Scripts\python.exe -m uvicorn kokoro_tts_server:app --app-dir scripts --port 9880 --host 127.0.0.1
+```
+
+**当前首音的构成**（2.1s 花在哪）：
+
+| 环节 | 耗时 |
+|---|---|
+| 大模型首 token | 1.1~1.2s（API 侧，项目内改不动） |
+| 攒到首段 12 字 | 约 0.1s（token 出完后马上就够） |
+| 首段合成（12 字 → 3 秒音频） | 0.9s |
+
+文字开始出现在 1.1s、出声在 2.1s，中间这 1 秒基本就是「首段合成」。
+再往下压只有两条路：首段继续切到 8 字（合成 0.6s，但断得更碎），
+或者换 GPU / 更快的 TTS 后端（RTF 0.3 → 0.05 的话首段只要 0.15s）。
+
+### GPU 到位后：换 CosyVoice2（待执行，交接清单）
+
+**为什么换**：Kokoro 只解决「有声音」，CosyVoice2 才能做 **DEC-007 的声音克隆**——
+用传承人 1 分钟干净人声复刻乡音/方言音色，这是非遗场景的核心需求（见 AGENT.md DEC-007 / T-303）。
+顺带 TTS 从 CPU 的 RTF ~0.3 降到 GPU 的 ~0.2（CosyVoice2-0.5B 比 Kokoro 大 6 倍，**不是更快，是更快且能克隆**）。
+
+**为什么不在本机装**：`cosyvoice` 依赖 `pynini` / `WeTextProcessing` / `ttsfrd`，Windows 上装不动，
+官方仓库主要在 Linux 跑。所以做成**独立的 HTTP 服务部署在 GPU 机上**，本机只当客户端——
+这正是当前架构已经支持的方式（编排层只认 `POST /tts`）。
+
+#### 1. GPU 机上要准备什么
+
+| 项 | 要求 | 备注 |
+|---|---|---|
+| 显存 | ~3 GB | 单卡 4090/3090 都够；与渲染引擎共用时按部署方案第四章算总账 |
+| 权重 | `FunAudioLLM/CosyVoice2-0.5B` | 走 ModelScope 下载（hf-mirror 本机实测断流，见上） |
+| License | Apache-2.0 ✅ | 已核实可进交付包（AGENT.md 第八章） |
+| 参考音频 | **1 分钟**传承人干净人声（16k+、无背景音、单人） | T-303；需本人书面授权（NO-007），交付物要有「AI 生成」标识（NO-008） |
+
+#### 2. 服务要暴露的接口（和现在完全一致）
+
+```
+POST /tts
+  {"text": "要念的文字", "voice_id": "laoyi", "speed": 1.0}
+  → 200 audio/wav（24kHz，与 Kokoro 相同，前端不用改）
+
+GET /health
+  → {"status":"ok","voice_id":"laoyi","backend":"cosyvoice2"}
+```
+
+`voice_id` 的语义会变：Kokoro 是内置音色名（`zf_001`），CosyVoice2 是**音色档案 id**。
+服务端维护一张映射表，两种模式都走同一个 id：
+
+| 模式 | 调用 | 适用 |
+|---|---|---|
+| `sft` 预置音色 | `inference_sft(tts, spk_id)` | 快速验证链路 |
+| `zero_shot` 零样本克隆 | `inference_zero_shot(tts, prompt_text, prompt_wav)` | **正式使用**（传承人音色） |
+
+`speed` 参数 CosyVoice2 原生支持（0.5~2.0），编排层已经在传，无需改动。
+
+#### 3. 本机只改 `.env` 三行
+
+```bash
+TTS_BASE_URL=http://<GPU机IP>:9881   # 换个端口，保留 9880 的 Kokoro 便于回滚
+TTS_VOICE_ID=laoyi                    # 换成传承人音色档案 id（不再是 zf_001）
+TTS_TIMEOUT=120
+```
+
+改完重启编排层即可，**`session.py` / `textsplit.py` / 前端一行都不用动**——
+分段、`seq`、排队播放全部与后端无关。
+
+#### 4. 验收标准
+
+| 检查 | 命令 / 方法 | 期望 |
+|---|---|---|
+| 服务活着 | `curl http://<IP>:9881/health` | `backend: cosyvoice2` |
+| 出声 | `curl -X POST .../tts -d '{"text":"皮影戏是第一批国家级非遗。","voice_id":"laoyi"}' -o t.wav` | 能听出是传承人的音色 |
+| 首音 | `python scripts/bench_tts_timeline.py` | 首段合成 0.5s 内，首音约 **1.6~1.8s** |
+| 无断流 | 同上，看分段到达表 | 每段到达时刻 < 前一段播放结束时刻 |
+
+**预期**：首音 2.1s → 约 1.6~1.8s（TTS 那 0.9s 压到 0.3~0.5s），剩下的 1.1s 是云端
+`qwen-flash` 的首 token，与 GPU 无关。想再压得换更快的 LLM 或缩短检索上下文。
+
+#### 5. 回滚
+
+把 `TTS_BASE_URL` 改回 `http://127.0.0.1:9880`、`TTS_VOICE_ID` 改回 `zf_001`，重启编排层——
+Kokoro 后端留着不删，随时可切回。
+
+## 检索与回答的长度预算（「明明库里有，却只答一半」的元凶）
+
+一个典型现象：问「按时间列出所有项目」，库里明明有 13 个项目，只答出 2~3 个。
+原因不是检索算法不准，而是**四层预算同时生效，每层都在截断**：
+
+| 层 | 参数 | 默认 | 截断表现 |
+|---|---|---|---|
+| ① 检索条数 | `RETRIEVE_TOP_K` | 5 | 42 张卡只取 5 张 |
+| ② 上下文预算 | `MAX_CONTEXT_CHARS` | 3000 字 | 装得下约 12 张卡，再多就截尾 |
+| ③ 输出长度 | `LLM_MAX_TOKENS` | 1200 token | 约 1300 汉字，写 4 个项目就停 |
+| ④ 回答风格 | `SYSTEM_PROMPT` | 通用问答 | 不再限制字数（早期版本写死「120 字以内」，必挂） |
+
+**探测方法**：调低某一层看结果有没有变化，变好就说明卡在那层。
+`python scripts/bench_llm.py` 可看首字延迟，`/knowledge/search` 可看召回明细。
+
+### 清单型问题自动走全量（`pipeline.is_enumeration`）
+
+问题里出现「所有 / 全部 / 清单 / 列出 / 有哪些 / 汇总 / 逐个 / 一一」等词时，
+自动切到**枚举模式**，四层一起放宽：
+
+| 项 | 普通问答 | 枚举模式 |
+|---|---|---|
+| 取卡方式 | 相似度 top_k | **该来源全部卡片，按原文顺序** |
+| 上下文预算 | 3000 字 | **16000 字** |
+| 输出上限 | 1200 token | **6000 token** |
+| 单条长度 | 不限 | **150 字以内**（不设限时模型会把 4 个项目写成 6600 字，后面全被截断） |
+| 系统提示 | 知识库问答 | 信息整理（逐条列全、不许省略/合并/编造） |
+| 语音合成 | 按句合成 | **跳过**（上千字逐句合成要好几分钟，听清单也没意义） |
+
+为什么要「按来源全量」而不是把 top_k 调大：top_k=20 时命中的 20 张可能全挤在同一段，
+另一些项目一张都没有；按来源全量能保证同一份文档不残缺。
+
+**来源过长会退化**：单个来源超过 `ENUM_MAX_SOURCE_CHUNKS`（默认 60 张）就不整篇塞，
+退回 top_k=20，但**按原文顺序重排**——清单型问题常要求「按时间」，相似度顺序和
+时间线毫无关系，照抄就会把 2015 年的项目排到 2021 年前面。
+
+实测（简历 46 张卡 / 8400 字，qwen-flash）：
+
+| 项 | 结果 |
+|---|---|
+| 召回 | 46 张（原 3 张） |
+| 列出的项目 | **16 条**，16 个项目全覆盖 |
+| 时间顺序 | 2026 → 2014 **严格倒序**（原为相似度乱序） |
+| 回答长度 | 2067 字，**无截断** |
+| 耗时 | 约 **7.4 秒**（清单模式跳过 TTS；改前逐句合成要 5 分钟以上） |
+| 成本 | 约 **0.5 分钱/次** |
+
+**单卡来源不下沉清单模式**：`plan()` 只在「该来源卡片数 > `top_k`」时才切枚举。
+反例是「秦腔有哪些角色行当」——同样是列举句式，但库里就一张卡，
+按清单处理只会让回答变成长清单，还白白丢掉语音播报。
+`Session` 的 `speak` 判断直接复用 `pipeline.plan()` 的结论，不按问题文本各判一次。
+
+### 标题必须和描述同卡，否则模型会「编」项目名
+
+简历、履历、产品手册这类文档，每项都有「名称 + 角色 + 起止时间」的标题行。
+早期切块把标题并进**上一张卡的末尾**，于是描述该项目的卡片里没有项目名——
+大模型检索到那张卡时只能自己编一个（实测编出过「厦门斑马定制AI能力支持项目」，
+简历里根本没这个项目）。这属于 NO-006 同类：不报错，但输出是假的。
+
+`rag/chunking.py` 现在会识别标题并让它**开新块**：
+
+- 判据：短（≤60 字）、不以句末标点收尾、含**起止时间区间**（`2020.05-2020.12`）。
+  只认区间不认单一年份——正文里「2023年，负责…」很常见，按单年份判断会把正文切碎。
+- `split_title_spans()` 做**段内切分**：PDF 常丢换行、标题后面也没标点
+  （「…2021.09-2022.01通，事件上报链路长…」），只按换行/句号判断永远识别不出来。
+- 标题开新块时**不带上一块的 overlap**，避免块首混进无关内容、检索串味。
+
+**已入库的数据不会自动变好**，要重切一遍：
+
+```bash
+# 先看会变成什么样，不写库
+.venv\Scripts\python.exe scripts\repair_index_source.py "宋伟-项目经理.pdf" --dry-run
+
+# 确认后重建（自动备份 .bak-时间戳，重算向量）
+.venv\Scripts\python.exe scripts\repair_index_source.py "宋伟-项目经理.pdf"
+```
+
+有原始文件时优先重新上传（`/knowledge/index-pdf`），那条路径最干净；
+`repair_index_source.py` 用于原始文件已丢失、只剩库内卡片的情况。
+重建后要重启编排层，`/health` 的 `chunks` 数会变。
 
 ## 检索质量评测（这是判断「能不能用」的唯一依据）
 

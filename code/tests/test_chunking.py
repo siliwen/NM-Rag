@@ -59,3 +59,76 @@ def test_chunk_dataclass_defaults():
     chunk = Chunk(id="x", text="内容")
     assert chunk.source == ""
     assert chunk.meta == {}
+
+
+# ---------- 标题行必须开新块（简历类文档的项目名/时间/角色不能被切走）----------
+def test_heading_with_period_starts_new_chunk():
+    """项目标题行（「XX项目 项目经理 2020.05-2020.12」）若留在上一块末尾，
+    检索命中的描述卡就没有项目名，模型只能自己编一个。"""
+    text = (
+        "上一段讲的是完全无关的交付细节，占掉一些字数用来制造换块压力。\n"
+        "成都旺小宝VR虚拟看房平台 项目经理 2020.05-2020.12\n"
+        "房地产客户对线上看房有需求，需要可交互的全景场景。"
+    )
+    chunks = chunk_text(text, size=40, overlap=10, source="简历")
+    head = [c for c in chunks if "成都旺小宝" in c.text]
+
+    assert head, "标题行不能凭空丢失"
+    assert head[0].text.startswith("成都旺小宝"), f"标题应开新块，实际：{head[0].text}"
+
+
+def test_heading_chunk_does_not_inherit_previous_overlap():
+    """标题开新块时不能带上一块的尾巴，否则块首是无关内容，检索会串味。"""
+    text = (
+        "这是上一段的收尾文字，讲的是别的事情。\n"
+        "宁德时代质量域四位一体项目 项目经理 2024.07-2025.03\n"
+        "从零组建并带领本地开发团队，构建数字化管控平台。"
+    )
+    chunks = chunk_text(text, size=80, overlap=20, source="简历")
+    head = [c for c in chunks if "宁德时代" in c.text][0]
+
+    assert head.text.startswith("宁德时代"), f"标题块混入了上一块内容：{head.text}"
+
+
+def test_period_sentence_is_not_treated_as_heading():
+    """正文里的单一年份或带句号的句子不能被误判成标题，否则切块过碎。"""
+    text = (
+        "2023年负责公司内部PMS系统迭代交付工作，完成约40个迭代版本。"
+        "2022年支持教育系统疫情防控平台建设，覆盖3万余名师生。"
+    )
+    chunks = chunk_text(text, size=200, overlap=0, source="资料")
+
+    assert len(chunks) == 1, f"正文不该被标题规则切碎：{[c.text for c in chunks]}"
+
+
+def test_heading_detected_when_pdf_lost_newlines():
+    """PDF 提取丢换行时，标题后面往往没有标点，与描述黏成一段。
+
+    真实简历：「…讲完了。中电2021镇安县基层治理平台 项目经理 2021.09-2022.01通，事件上报链路长…」
+    标题前后的标点都不完整，只在「句号之后、描述之前」有位置可切。
+    切不开 → 描述卡没有项目名 → 模型只能编一个。
+    """
+    text = (
+        "上一段的交付细节讲完了，这里再补充几句无关内容把前面的块撑满。"
+        "中电2021镇安县基层治理平台 项目经理 2021.09-2022.01"
+        "通，事件上报链路长，指挥中心无法实时掌握现场状况，制约了响应速度。"
+    )
+    chunks = chunk_text(text, size=200, overlap=0, source="简历")
+    idx = [i for i, c in enumerate(chunks) if "镇安县" in c.text]
+
+    assert idx, "标题不能丢失"
+    head = chunks[idx[0]]
+    assert head.text.startswith("中电2021"), f"标题应开新块，实际：{head.text}"
+
+
+def test_heading_and_its_description_stay_together():
+    """标题切出来后必须和它自己的描述在同一块；只剩标题的卡片等于没用。"""
+    text = (
+        "上一段的交付细节讲完了，这里再补充几句无关内容把前面的块撑满。"
+        "中电2021镇安县基层治理平台 项目经理 2021.09-2022.01"
+        "通，事件上报链路长，指挥中心无法实时掌握现场状况。"
+    )
+    chunks = chunk_text(text, size=200, overlap=0, source="简历")
+    head = [c for c in chunks if "镇安县" in c.text][0]
+
+    assert "事件上报" in head.text, f"标题与描述被分开了：{head.text}"

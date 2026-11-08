@@ -16,10 +16,15 @@ class AvatarClient(Protocol):
 
 
 class LiveTalkingClient:
-    def __init__(self, base_url: str, avatar_id: str = "", timeout: int = 15) -> None:
+    """本机渲染引擎客户端。trust_env=False：本地调用不能走系统代理（实测每次多花 0.6 秒）。"""
+
+    def __init__(
+        self, base_url: str, avatar_id: str = "", timeout: int = 15, trust_env: bool = False
+    ) -> None:
         self.base_url = base_url.rstrip("/")
         self.avatar_id = avatar_id
         self.timeout = timeout
+        self.trust_env = trust_env
 
     async def say(self, text: str, session_id: str) -> dict:
         import httpx
@@ -27,7 +32,7 @@ class LiveTalkingClient:
         payload = {"text": text, "sessionid": session_id, "interrupt": True, "type": "echo"}
         if self.avatar_id:
             payload["avatar_id"] = self.avatar_id
-        async with httpx.AsyncClient(timeout=self.timeout) as client:
+        async with httpx.AsyncClient(timeout=self.timeout, trust_env=self.trust_env) as client:
             resp = await client.post(f"{self.base_url}/human", json=payload)
             if resp.status_code >= 400:
                 raise RuntimeError(f"渲染引擎返回 {resp.status_code}: {resp.text[:200]}")
@@ -36,7 +41,7 @@ class LiveTalkingClient:
     async def interrupt(self, session_id: str) -> dict:
         import httpx
 
-        async with httpx.AsyncClient(timeout=self.timeout) as client:
+        async with httpx.AsyncClient(timeout=self.timeout, trust_env=self.trust_env) as client:
             resp = await client.post(
                 f"{self.base_url}/human", json={"text": "", "sessionid": session_id, "interrupt": True}
             )

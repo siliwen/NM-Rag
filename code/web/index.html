@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>非遗数字人讲解员 · 联调演示台</title>
+<title>知识库问答助手 · 联调演示台</title>
 <style>
   :root{
     --bg:#f7f4ef; --panel:#ffffff; --line:#e7ded1;
@@ -158,6 +158,15 @@
   .src .sc{margin-left:auto;color:var(--jade);font-variant-numeric:tabular-nums}
   .src .tx{display:none;margin-top:6px;color:var(--ink-3);line-height:1.55;border-top:1px dashed #f0e9df;padding-top:6px}
   .src.open .tx{display:block}
+  /* 清单型回答会返回几十张卡，全平铺能把对话框顶出屏幕：默认只露前几条，其余折叠 */
+  .src-rest{display:none;flex-direction:column;gap:6px}
+  .sources.all .src-rest{display:flex}
+  .src-more{
+    font-size:11.5px;padding:7px 10px;border-radius:9px;text-align:left;
+    border:1px dashed #ddd0bd;background:#fffdfa;color:var(--ink-2);cursor:pointer;
+    font-family:inherit;transition:.15s;
+  }
+  .src-more:hover{border-color:#c9b9a3;color:var(--ink);background:#fbf7f1}
   .empty{color:var(--ink-3);font-size:13px;text-align:center;padding:46px 20px;line-height:2}
   .empty b{color:var(--red);font-weight:600}
 
@@ -211,8 +220,8 @@
 </head>
 <body>
 <header>
-  <div class="mark">非遗</div>
-  <h1>非遗数字人讲解员</h1>
+  <div class="mark">知识库</div>
+  <h1>知识库问答助手</h1>
   <span class="sub">联调演示台 · 编排层 + RAG 骨架</span>
   <div class="pills">
     <span class="pill" id="p-health"><span class="dot"></span>连接中</span>
@@ -260,10 +269,10 @@
         <button class="btn" id="btn-audio" style="margin-top:8px">转写并入库</button>
         <div class="hint" id="audio-hint">CPU 上约 12 秒/分钟音频（RTF 0.09）。方言建议先转写导出稿子人工校对，再回灌。</div>
         <label class="f">或粘贴自己的文本</label>
-        <textarea id="in-text" rows="4" placeholder="把非遗申报书、讲解稿、口述史整理稿粘贴到这里…"></textarea>
+        <textarea id="in-text" rows="4" placeholder="把报告、说明书、会议纪要、简历等任意文本粘贴到这里…"></textarea>
         <input type="text" id="in-src" placeholder="来源标识，如：皮影戏申报书 p12" style="margin-top:8px" />
         <button class="btn" id="btn-index" style="margin-top:8px">切块并入库</button>
-        <div class="hint" id="seed-hint">示例语料共 30 张卡片，覆盖皮影戏、秦腔、剪纸、凤翔泥塑、西安鼓乐与非遗制度，与评测集同源。</div>
+        <div class="hint" id="seed-hint">示例语料共 30 张卡片，覆盖皮影戏、秦腔、剪纸、凤翔泥塑、西安鼓乐与非遗制度，与评测集同源。换成自己的文档同样适用。</div>
       </div>
     </div>
 
@@ -281,13 +290,14 @@
   <div class="card chat">
     <div class="chat-head">
       <div class="avatar thinking" id="avatar"><span class="mouth"></span></div>
-      <div class="who">非遗讲解员<small id="who-sub">待命中 · 形象与音色待接入</small></div>
+      <div class="who">知识库助手<small id="who-sub">待命中 · 语音已接入</small></div>
       <div class="state-pill" id="state">idle</div>
     </div>
     <div class="stream" id="stream">
       <div class="empty" id="empty">
         先在左侧<b>重置并灌入示例语料</b>，然后在下方提问。<br />
-        例如：「影人的花纹是怎么弄出来的？」「泥老虎是摆着干嘛用的？」
+        示例语料是非遗题材：「影人的花纹是怎么弄出来的？」「泥老虎是摆着干嘛用的？」<br />
+        换成自己的文档（合同、手册、简历、会议纪要）同样可以问。
       </div>
     </div>
     <div class="quick" id="quick">
@@ -299,6 +309,7 @@
     </div>
     <div class="composer">
       <textarea id="in-q" placeholder="观众提问…（Enter 发送，Shift+Enter 换行）"></textarea>
+      <label class="hint" style="white-space:nowrap;display:flex;align-items:center;gap:5px"><input type="checkbox" id="voice-enabled">语音播报</label>
       <button class="btn primary send" id="btn-send">提问</button>
       <button class="btn ghost send" id="btn-stop" title="模拟观众中途插话">打断</button>
     </div>
@@ -403,7 +414,7 @@ function logEvent(ev) {
   const div = document.createElement('div');
   const detail = ev.type === 'token' ? JSON.stringify(ev.text)
     : ev.type === 'sources' ? ev.items.length + ' 条来源'
-    : ev.type === 'audio' ? ev.bytes + ' bytes'
+    : ev.type === 'audio' ? '#' + (ev.seq || 1) + ' ' + ev.bytes + 'B ' + JSON.stringify((ev.text || '').slice(0, 10))
     : ev.state ? ev.state : '';
   div.innerHTML = '<span class="t">' + t + '</span> <span class="k">' + ev.type + '</span> ' + detail;
   box.appendChild(div);
@@ -411,11 +422,69 @@ function logEvent(ev) {
   while (box.children.length > 120) box.removeChild(box.firstChild);
 }
 
+/* ---------- 语音播报（按句排队播放） ---------- */
+// 服务端现在按句下发多段 audio（seq 递增）；这里排队顺序播，
+// 否则多个 Audio 同时 play() 会叠在一起变成噪音。
+let voiceQueue = [];
+let voicePlaying = false;
+let voiceToken = 0;      // 新提问/打断时递增，让旧队列整体作废
+let voiceCurrent = null;
+
+function stopVoice() {
+  voiceToken += 1;
+  voiceQueue.forEach((it) => it.url && URL.revokeObjectURL(it.url));
+  voiceQueue = [];
+  if (voiceCurrent) {
+    voiceCurrent.onended = voiceCurrent.onerror = null;
+    voiceCurrent.pause();
+    if (voiceCurrent.src) URL.revokeObjectURL(voiceCurrent.src);
+    voiceCurrent = null;
+  }
+  voicePlaying = false;
+}
+
+function enqueueVoice(ev) {
+  if (!ev.data) return;
+  const raw = atob(ev.data);
+  const bytes = new Uint8Array(raw.length);
+  for (let j = 0; j < raw.length; j++) bytes[j] = raw.charCodeAt(j);
+  const url = URL.createObjectURL(new Blob([bytes], { type: ev.mime_type || 'audio/wav' }));
+  voiceQueue.push({ seq: ev.seq || 0, text: ev.text || '', url });
+  // 服务端按句序下发，这里再兜一层排序，防止乱序导致前后句串掉
+  voiceQueue.sort((a, b) => a.seq - b.seq);
+  pumpVoice();
+}
+
+function pumpVoice() {
+  if (voicePlaying || !voiceQueue.length) return;
+  const item = voiceQueue.shift();
+  const mine = voiceToken;
+  const player = new Audio(item.url);
+  voiceCurrent = player;
+  voicePlaying = true;
+  const finish = () => {
+    if (mine !== voiceToken) return;   // 已被新提问/打断作废，别再续播
+    URL.revokeObjectURL(item.url);
+    voicePlaying = false;
+    voiceCurrent = null;
+    pumpVoice();
+  };
+  player.onended = finish;
+  player.onerror = () => {
+    logEvent({ type: 'error', state: '语音播放失败：' + (item.text || '').slice(0, 12) });
+    finish();
+  };
+  player.play().catch((err) => {
+    logEvent({ type: 'error', state: '语音播放失败：' + err.message });
+    finish();
+  });
+}
+
 /* ---------- 对话 ---------- */
 function setState(s) {
   $('state').textContent = s;
   $('avatar').className = 'avatar ' + (s === 'speaking' ? 'speaking' : s === 'thinking' || s === 'listening' ? 'thinking' : '');
-  $('who-sub').textContent = s === 'speaking' ? '正在讲解…' : s === 'thinking' ? '检索知识库…' : s === 'listening' ? '在听…' : '待命中 · 形象与音色待接入';
+  $('who-sub').textContent = s === 'speaking' ? '正在回答…' : s === 'thinking' ? '检索知识库…' : s === 'listening' ? '在听…' : '待命中 · 语音已接入';
 }
 
 function addUser(text) {
@@ -435,27 +504,53 @@ function addBot() {
   return div;
 }
 
+// 来源默认只露前几条：清单型问题一次回 46 张卡，全铺出来会把回答挤出屏幕
+const SRC_FOLD = 4;
+
+function srcRow(it) {
+  const el = document.createElement('div');
+  el.className = 'src';
+  el.innerHTML = '<div class="top"><span class="nm"></span><span class="sc"></span></div><div class="tx"></div>';
+  // PDF 卡片带页码、录音卡片带时间点：观众追问「哪一页/第几分钟」时能直接答上来
+  el.querySelector('.nm').textContent = (it.source || it.id) +
+    placeOf(it) + (it.ocr ? ' · OCR' : '');
+  el.querySelector('.sc').textContent = 'score ' + it.score;
+  el.querySelector('.tx').textContent = it.text + (it.detail ? '　[' + it.detail + ']' : '');
+  el.onclick = () => el.classList.toggle('open');
+  return el;
+}
+
 function addSources(items) {
   if (!items || !items.length) return;
   const box = document.createElement('div');
   box.className = 'sources';
-  items.forEach((it) => {
-    const el = document.createElement('div');
-    el.className = 'src';
-    el.innerHTML = '<div class="top"><span class="nm"></span><span class="sc"></span></div><div class="tx"></div>';
-    // PDF 卡片带页码、录音卡片带时间点：观众追问「哪一页/第几分钟」时能直接答上来
-    el.querySelector('.nm').textContent = (it.source || it.id) +
-      placeOf(it) + (it.ocr ? ' · OCR' : '');
-    el.querySelector('.sc').textContent = 'score ' + it.score;
-    el.querySelector('.tx').textContent = it.text + (it.detail ? '　[' + it.detail + ']' : '');
-    el.onclick = () => el.classList.toggle('open');
-    box.appendChild(el);
-  });
+  items.slice(0, SRC_FOLD).forEach((it) => box.appendChild(srcRow(it)));
+
+  const rest = items.slice(SRC_FOLD);
+  if (rest.length) {
+    const fold = document.createElement('div');
+    fold.className = 'src-rest';
+    rest.forEach((it) => fold.appendChild(srcRow(it)));
+    box.appendChild(fold);
+
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'src-more';
+    btn.textContent = '展开其余 ' + rest.length + ' 条来源（共 ' + items.length + ' 条）';
+    btn.onclick = () => {
+      const open = box.classList.toggle('all');
+      btn.textContent = open
+        ? '收起，只留前 ' + SRC_FOLD + ' 条'
+        : '展开其余 ' + rest.length + ' 条来源（共 ' + items.length + ' 条）';
+    };
+    box.appendChild(btn);
+  }
   $('stream').appendChild(box);
 }
 
 async function ask(text) {
   if (streaming || !text.trim()) return;
+  stopVoice();  // 上一轮可能还在播，新问题先掐掉
   streaming = true;
   $('btn-send').disabled = true;
   await ensureSession();
@@ -491,7 +586,8 @@ async function ask(text) {
         if (ev.type === 'state') setState(ev.state);
         else if (ev.type === 'sources') addSources(ev.items);
         else if (ev.type === 'token') { answer += ev.text; txt.textContent = answer; $('stream').scrollTop = $('stream').scrollHeight; }
-        else if (ev.type === 'interrupted') { txt.textContent = answer + '（已被打断）'; }
+        else if (ev.type === 'audio') { if ($('voice-enabled').checked) enqueueVoice(ev); }
+        else if (ev.type === 'interrupted') { txt.textContent = answer + '（已被打断）'; stopVoice(); }
       }
     }
   } catch (e) {
@@ -727,10 +823,12 @@ $('btn-index').onclick = async () => {
 $('btn-send').onclick = () => { const q = $('in-q').value.trim(); if (q) { $('in-q').value = ''; ask(q); } };
 $('btn-stop').onclick = async () => {
   if (!sessionId) return;
+  stopVoice();
   await fetch('/session/' + sessionId + '/interrupt', { method: 'POST' });
   logEvent({ type: 'interrupt', state: '观众插话' });
 };
 $('btn-search').onclick = search;
+$('voice-enabled').onchange = (e) => { if (!e.target.checked) stopVoice(); };
 $('in-sq').onkeydown = (e) => { if (e.key === 'Enter') search(); };
 $('in-q').onkeydown = (e) => {
   if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); $('btn-send').click(); }

@@ -12,9 +12,13 @@ Message = dict
 
 
 class LLMClient(Protocol):
-    async def complete(self, messages: Sequence[Message], temperature: float = 0.3) -> str: ...
+    async def complete(
+        self, messages: Sequence[Message], temperature: float = 0.3, max_tokens: int | None = None
+    ) -> str: ...
 
-    def stream(self, messages: Sequence[Message], temperature: float = 0.3) -> AsyncIterator[str]: ...
+    def stream(
+        self, messages: Sequence[Message], temperature: float = 0.3, max_tokens: int | None = None
+    ) -> AsyncIterator[str]: ...
 
 
 class StubLLM:
@@ -33,14 +37,24 @@ class StubLLM:
             if m.get("role") == "user":
                 last_user = str(m.get("content", ""))
                 break
-        question = last_user.split("【观众问题】")[-1].strip() or last_user
+        # 兼容历史标签「观众问题」：老脚本与旧测试里仍可能用这个名字
+        question = last_user
+        for marker in ("【用户问题】", "【观众问题】"):
+            if marker in last_user:
+                question = last_user.split(marker)[-1].strip()
+                break
+        question = question.strip() or last_user
         return f"这是关于「{question[:20]}」的讲解。"
 
-    async def complete(self, messages: Sequence[Message], temperature: float = 0.3) -> str:
+    async def complete(
+        self, messages: Sequence[Message], temperature: float = 0.3, max_tokens: int | None = None
+    ) -> str:
         self.calls.append(list(messages))
         return self._render(messages)
 
-    async def stream(self, messages: Sequence[Message], temperature: float = 0.3) -> AsyncIterator[str]:
+    async def stream(
+        self, messages: Sequence[Message], temperature: float = 0.3, max_tokens: int | None = None
+    ) -> AsyncIterator[str]:
         import asyncio
 
         self.calls.append(list(messages))
@@ -76,35 +90,51 @@ class OpenAICompatLLM:
     def _endpoint(self) -> str:
         return f"{self.base_url}/chat/completions"
 
-    def _payload(self, messages: Sequence[Message], temperature: float, stream: bool) -> dict:
+    def _payload(
+        self,
+        messages: Sequence[Message],
+        temperature: float,
+        stream: bool,
+        max_tokens: int | None = None,
+    ) -> dict:
         return {
             "model": self.model,
             "messages": list(messages),
             "temperature": temperature,
-            "max_tokens": self.max_tokens,
+            # 按调用覆盖：清单型问题要 4000，普通讲解 800 就够（省 token 也省时间）
+            "max_tokens": max_tokens or self.max_tokens,
             "stream": stream,
         }
 
-    async def complete(self, messages: Sequence[Message], temperature: float = 0.3) -> str:
+    async def complete(
+        self, messages: Sequence[Message], temperature: float = 0.3, max_tokens: int | None = None
+    ) -> str:
         import httpx
 
         headers = {"Authorization": f"Bearer {self.api_key}"}
         async with httpx.AsyncClient(timeout=self.timeout) as client:
             resp = await client.post(
-                self._endpoint, headers=headers, json=self._payload(messages, temperature, False)
+                self._endpoint,
+                headers=headers,
+                json=self._payload(messages, temperature, False, max_tokens),
             )
             if resp.status_code >= 400:
                 raise RuntimeError(f"LLM 请求失败 {resp.status_code}: {resp.text[:300]}")
             data = resp.json()
         return data["choices"][0]["message"]["content"]
 
-    async def stream(self, messages: Sequence[Message], temperature: float = 0.3) -> AsyncIterator[str]:
+    async def stream(
+        self, messages: Sequence[Message], temperature: float = 0.3, max_tokens: int | None = None
+    ) -> AsyncIterator[str]:
         import httpx
 
         headers = {"Authorization": f"Bearer {self.api_key}"}
         async with httpx.AsyncClient(timeout=self.timeout) as client:
             async with client.stream(
-                "POST", self._endpoint, headers=headers, json=self._payload(messages, temperature, True)
+                "POST",
+                self._endpoint,
+                headers=headers,
+                json=self._payload(messages, temperature, True, max_tokens),
             ) as resp:
                 if resp.status_code >= 400:
                     body = await resp.aread()
@@ -133,4 +163,5 @@ def build_llm(settings) -> LLMClient:
         api_key=settings.llm_api_key,
         model=settings.llm_model,
         timeout=settings.llm_timeout,
+        max_tokens=getattr(settings, "llm_max_tokens", 800),
     )
